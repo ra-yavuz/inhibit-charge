@@ -1,3 +1,23 @@
+inhibit-charge (0.2.1-1) unstable; urgency=low
+
+  * postinst now enables and starts inhibit-charged.service on install,
+    and try-restarts it on upgrade. The script-built .deb does not run
+    dh_installsystemd, which would normally do this for us.
+  * postrm now stops and disables the service on remove (previously
+    only purge cleaned up state, but the service was left running and
+    enabled after a plain remove).
+  * Ship install.sh in the repo for users who want to install from
+    source without adding the apt source. Subcommands: install (default,
+    idempotent), uninstall, purge, verify.
+  * Improve "you need a fresh shell session" messaging across the CLI's
+    permission-error path, install.sh, README, and project Pages site.
+    Make clear that a new terminal tab in the same login session is not
+    enough (Linux freezes group lists at login). install.sh now defers
+    this notice to the very end of its run so it does not scroll off
+    screen behind the verify block.
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Tue, 05 May 2026 14:30:00 +0000
+
 inhibit-charge (0.2.0-1) unstable; urgency=low
 
   * Rename user-facing CLI from "power-mode" to "inhibit-charge".

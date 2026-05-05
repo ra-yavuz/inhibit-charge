@@ -12,7 +12,16 @@ case "$1" in
             delgroup --system "$GROUP" || true
         fi
         ;;
-    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+    remove|disappear)
+        # Stop and disable the daemon. We use the same conditional
+        # systemd check as postinst.
+        if [ -d /run/systemd/system ]; then
+            systemctl stop inhibit-charged.service 2>/dev/null || true
+            systemctl disable inhibit-charged.service 2>/dev/null || true
+            systemctl daemon-reload || true
+        fi
+        ;;
+    upgrade|failed-upgrade|abort-install|abort-upgrade)
         ;;
     *)
         echo "postrm called with unknown argument \`$1'" >&2

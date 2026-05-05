@@ -110,7 +110,7 @@
   "description": "A small Linux daemon and CLI that holds your laptop battery at a target charge level on AC using the kernel's inhibit-charge mode, instead of just capping with start/end charge thresholds.",
   "url": "https://ra-yavuz.github.io/inhibit-charge/",
   "downloadUrl": "https://github.com/ra-yavuz/inhibit-charge/releases",
-  "softwareVersion": "0.2.0",
+  "softwareVersion": "0.2.1",
   "license": "https://opensource.org/licenses/MIT",
   "author": {
     "@type": "Person",
@@ -217,9 +217,31 @@ sudo usermod -aG inhibit-charge $USER     # log out + back in</code></pre>
     Alternatively, download the latest <code>.deb</code> from
     <a href="https://github.com/ra-yavuz/inhibit-charge/releases">GitHub Releases</a>:
   </p>
-  <pre><code>wget https://github.com/ra-yavuz/inhibit-charge/releases/latest/download/inhibit-charge_0.1.0-1_all.deb
-sudo apt install ./inhibit-charge_0.1.0-1_all.deb
+  <pre><code>wget https://github.com/ra-yavuz/inhibit-charge/releases/latest/download/inhibit-charge_0.2.1-1_all.deb
+sudo apt install ./inhibit-charge_0.2.1-1_all.deb
 sudo usermod -aG inhibit-charge $USER</code></pre>
+
+  <h2>Install from source</h2>
+  <p>
+    For systems where you do not want to add the apt source, the repo
+    ships a self-contained <code>install.sh</code> that handles
+    everything (group, state dir, files, systemd unit, enable+start):
+  </p>
+  <pre><code>git clone https://github.com/ra-yavuz/inhibit-charge.git
+cd inhibit-charge
+sudo bash install.sh</code></pre>
+  <p>
+    Other subcommands: <code>install.sh uninstall</code> (remove files
+    only), <code>install.sh purge</code> (remove everything including
+    state), <code>install.sh verify</code> (status report). Idempotent.
+  </p>
+  <p style="color: var(--muted); font-size: 0.92rem;">
+    After install, you need a fresh shell session before the CLI works:
+    a new terminal tab in the same login session is not enough, because
+    Linux freezes group lists at login. Either run
+    <code>newgrp inhibit-charge</code> in your terminal, or log out and
+    back in.
+  </p>
 
   <h2>How it works</h2>
   <p>

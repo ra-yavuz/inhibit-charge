@@ -80,7 +80,11 @@ echo "deb [signed-by=/etc/apt/keyrings/ra-yavuz.gpg] https://ra-yavuz.github.io/
 # 3. Install
 sudo apt update
 sudo apt install inhibit-charge
-sudo usermod -aG inhibit-charge $USER     # log out + back in (or run `newgrp inhibit-charge`)
+# The install adds you to the inhibit-charge group. Your existing login
+# session does NOT yet have it: Linux freezes group lists at login, so a
+# new terminal tab in the same session is not enough. You need a fresh
+# shell session. Either run `newgrp inhibit-charge` in your terminal, or
+# log out and back in. Then:
 inhibit-charge status
 ```
 
@@ -97,13 +101,21 @@ inhibit-charge status
 
 ### From source (any distro with systemd + bash)
 
-```
+The repo includes a self-contained installer. It creates the `inhibit-charge` system group, installs the files into `/usr/`, the systemd unit into `/lib/systemd/system/`, and seeds `/var/lib/inhibit-charge/` with the default `home` mode at 60%. Idempotent, safe to re-run.
+
+```bash
 git clone https://github.com/ra-yavuz/inhibit-charge.git
 cd inhibit-charge
-sudo make install
-sudo systemctl enable --now inhibit-charged
+sudo bash install.sh                  # install (or upgrade) in place
+# After the install adds you to the inhibit-charge group, your existing
+# login session does NOT yet have it. You need a fresh shell session: a
+# new terminal tab in the same session is not enough (Linux freezes
+# group lists at login). Either run `newgrp inhibit-charge` in your
+# terminal, or log out and back in. Then:
 inhibit-charge status
 ```
+
+Other subcommands: `sudo bash install.sh uninstall` (remove files, keep state), `sudo bash install.sh purge` (remove everything including state and group), `sudo bash install.sh verify` (print install state).
 
 ## How it works
 

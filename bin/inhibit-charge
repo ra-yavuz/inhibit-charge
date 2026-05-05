@@ -60,8 +60,23 @@ write_state() {
     local mode=$1 target=${2:-}
     if [ ! -w "$STATE_DIR/mode" ]; then
         echo "Error: $STATE_DIR/mode is not writable by your user." >&2
-        echo "Hint: add yourself to the 'inhibit-charge' group:" >&2
-        echo "  sudo usermod -aG inhibit-charge \$USER  (then log out + back in)" >&2
+        if id -nG | tr ' ' '\n' | grep -qx inhibit-charge; then
+            echo "(your user is in the inhibit-charge group but the state dir is not group-writable)" >&2
+            echo "Try: sudo chmod 0664 $STATE_DIR/mode $STATE_DIR/target" >&2
+        elif getent group inhibit-charge >/dev/null 2>&1; then
+            echo "Your login session does not yet have the 'inhibit-charge' group active." >&2
+            echo "You need a fresh shell session: a new terminal tab in the SAME login is" >&2
+            echo "not enough (Linux freezes group lists at login). Pick one:" >&2
+            echo "  newgrp inhibit-charge   (works in this terminal, no logout needed)" >&2
+            echo "  log out and log back in" >&2
+            echo "  reboot" >&2
+            echo "If you have not been added to the group yet:" >&2
+            echo "  sudo usermod -aG inhibit-charge \$USER" >&2
+        else
+            echo "The 'inhibit-charge' group does not exist yet. Add yourself with:" >&2
+            echo "  sudo usermod -aG inhibit-charge \$USER" >&2
+            echo "then run 'newgrp inhibit-charge' in this terminal or open a new one." >&2
+        fi
         exit 1
     fi
     printf '%s\n' "$mode" > "$STATE_DIR/mode"

@@ -26,10 +26,21 @@ case "$1" in
             chmod 0664 "$STATE_DIR/$f"
         done
 
-        # Allow the daemon to reload via systemctl from any group member.
-        # systemd handles this via PolicyKit; we don't need a polkit rule
-        # because the CLI falls back gracefully if reload-or-restart fails.
-        :
+        # Enable and start the daemon. We do this in postinst because the
+        # script-built .deb does not run dh_installsystemd, which would
+        # normally handle this for us. Re-running on upgrades is a no-op.
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload || true
+            systemctl enable inhibit-charged.service || true
+            # On fresh install, start it. On upgrade, restart so the new
+            # binary is picked up. `try-restart` is the safer of the two
+            # for upgrades (it won't start a unit the admin had stopped).
+            if [ -z "${2:-}" ]; then
+                systemctl start inhibit-charged.service || true
+            else
+                systemctl try-restart inhibit-charged.service || true
+            fi
+        fi
         ;;
     abort-upgrade|abort-remove|abort-deconfigure)
         ;;
