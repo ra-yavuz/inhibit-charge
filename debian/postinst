@@ -13,6 +13,15 @@ case "$1" in
             rm -f /etc/update-motd.d/50-inhibit-charge
         fi
 
+        # Fix ownership of the motd-enabled flag if 0.4.0 created it
+        # with the wrong group/mode. 0.4.1 onward chgrp + chmod itself
+        # but the existing flag file from a previous toggle would still
+        # be root:root 0644.
+        if [ -f /var/lib/inhibit-charge/motd-enabled ]; then
+            chgrp inhibit-charge /var/lib/inhibit-charge/motd-enabled 2>/dev/null || true
+            chmod 0664           /var/lib/inhibit-charge/motd-enabled 2>/dev/null || true
+        fi
+
         # Create the inhibit-charge group if missing. Members of this group
         # can write to the state files via the group-writable permission
         # below; no sudo is needed for the CLI.

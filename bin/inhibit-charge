@@ -53,12 +53,17 @@ EOF
 }
 
 # The greeting is implemented via /etc/profile.d/50-inhibit-charge.sh,
-# which is always sourced by every interactive shell on Debian/Ubuntu,
-# but short-circuits unless this flag file exists. So the toggle is just
-# a flag file under the state dir, owned by root:inhibit-charge so the
-# CLI itself can flip it without sudo when run by a group member.
+# which login shells source on their own. Most desktop terminal tabs,
+# however, are interactive NON-login shells (sourced via
+# /etc/bash.bashrc, which on Ubuntu does NOT source profile.d). So
+# enabling the greeting *also* drops a one-line source instruction into
+# the invoking user's ~/.bashrc, guarded by clear marker comments so
+# the CLI can remove it cleanly later.
 MOTD_FLAG=/var/lib/inhibit-charge/motd-enabled
 PROFILE_FILE=/etc/profile.d/50-inhibit-charge.sh
+# shellcheck disable=SC2016 # markers are intentionally literal, not expanded
+BASHRC_BEGIN_MARKER='# >>> inhibit-charge greeting (managed by `inhibit-charge motd`) >>>'
+BASHRC_END_MARKER='# <<< inhibit-charge greeting <<<'
 
 motd_enabled() {
     [ -f "$MOTD_FLAG" ]
@@ -68,15 +73,96 @@ motd_require_writable() {
     if [ "$(id -u)" -eq 0 ]; then
         return 0
     fi
-    # Group members can write the flag file because the state dir is
-    # group-writable. No sudo needed in that case.
     if [ -w "$STATE_DIR" ]; then
         return 0
     fi
-    echo "Error: cannot write to $STATE_DIR." >&2
-    echo "Either: run with sudo, or add yourself to the inhibit-charge group" >&2
-    echo "and start a fresh shell session (newgrp inhibit-charge)." >&2
+    if id -nG | tr ' ' '\n' | grep -qx inhibit-charge; then
+        echo "Error: cannot write to $STATE_DIR even though you are in the" >&2
+        echo "inhibit-charge group. Check the directory's group-writable bit:" >&2
+        echo "  ls -ld $STATE_DIR    (expected: drwxrwxr-x root inhibit-charge)" >&2
+        echo "If it is wrong, run: sudo chmod 0775 $STATE_DIR && sudo chgrp inhibit-charge $STATE_DIR" >&2
+    elif getent group inhibit-charge >/dev/null 2>&1; then
+        echo "Error: cannot write to $STATE_DIR because your current shell" >&2
+        echo "session does not yet have the 'inhibit-charge' group active." >&2
+        echo "Linux freezes group lists at login. Pick one:" >&2
+        echo "  newgrp inhibit-charge   (works in this terminal)" >&2
+        echo "  log out and back in / reboot" >&2
+    else
+        echo "Error: cannot write to $STATE_DIR. The 'inhibit-charge'" >&2
+        echo "group does not exist. Reinstall the package, or:" >&2
+        echo "  sudo addgroup --system inhibit-charge" >&2
+        echo "  sudo chgrp inhibit-charge $STATE_DIR && sudo chmod 0775 $STATE_DIR" >&2
+        echo "  sudo usermod -aG inhibit-charge \$USER" >&2
+    fi
     exit 1
+}
+
+# The home directory of the *invoking* user (not root, even when run
+# under sudo). We patch their ~/.bashrc, not root's.
+target_home() {
+    local who=${SUDO_USER:-${USER:-$(id -un)}}
+    getent passwd "$who" | cut -d: -f6
+}
+
+bashrc_path() {
+    local home
+    home=$(target_home)
+    [ -n "$home" ] || { echo ""; return; }
+    echo "$home/.bashrc"
+}
+
+bashrc_block_present() {
+    local rc
+    rc=$(bashrc_path)
+    [ -n "$rc" ] && [ -f "$rc" ] && grep -qF "$BASHRC_BEGIN_MARKER" "$rc"
+}
+
+# Add the source-snippet block to ~/.bashrc if not already there.
+# Idempotent. Owned by the invoking user, not root.
+bashrc_block_add() {
+    local rc
+    rc=$(bashrc_path)
+    [ -n "$rc" ] || return 0
+    [ -f "$rc" ] || touch "$rc"
+    if bashrc_block_present; then
+        return 0
+    fi
+    {
+        echo ""
+        echo "$BASHRC_BEGIN_MARKER"
+        echo "# This block is added by 'inhibit-charge motd' and removed by"
+        echo "# 'inhibit-charge motd off'. Do not edit by hand."
+        echo "if [ -r /etc/profile.d/50-inhibit-charge.sh ]; then"
+        echo "    . /etc/profile.d/50-inhibit-charge.sh"
+        echo "fi"
+        echo "$BASHRC_END_MARKER"
+    } >> "$rc"
+    # Make sure ownership stays with the user (sudo invocations can
+    # otherwise create root-owned content via redirected appends. Here
+    # we appended through a shell that inherits the user's identity in
+    # most cases, but when run via sudo this is necessary).
+    if [ "$(id -u)" -eq 0 ]; then
+        local who=${SUDO_USER:-}
+        if [ -n "$who" ] && [ "$who" != "root" ]; then
+            chown "$who":"$(id -gn "$who")" "$rc" 2>/dev/null || true
+        fi
+    fi
+}
+
+bashrc_block_remove() {
+    local rc
+    rc=$(bashrc_path)
+    [ -n "$rc" ] || return 0
+    [ -f "$rc" ] || return 0
+    if ! bashrc_block_present; then
+        return 0
+    fi
+    # Strip the block (begin marker, end marker, and any blank line
+    # immediately preceding the block we added).
+    sed -i.bak \
+        -e "/^$(printf '%s' "$BASHRC_BEGIN_MARKER" | sed 's/[]\/$*.^[]/\\&/g')\$/,/^$(printf '%s' "$BASHRC_END_MARKER" | sed 's/[]\/$*.^[]/\\&/g')\$/d" \
+        "$rc"
+    rm -f "$rc.bak"
 }
 
 print_enabled_message() {
@@ -89,22 +175,41 @@ print_enabled_message() {
     fi
 }
 
+write_flag_with_correct_ownership() {
+    : > "$MOTD_FLAG"
+    # When invoked under sudo, the file we just created may end up
+    # root-owned and not writable by group members. Make sure the flag
+    # is group-owned by inhibit-charge and group-writable so future
+    # toggles by group members work without sudo.
+    if [ "$(id -u)" -eq 0 ]; then
+        chgrp inhibit-charge "$MOTD_FLAG" 2>/dev/null || true
+        chmod 0664 "$MOTD_FLAG" 2>/dev/null || true
+    fi
+}
+
 cmd_motd() {
     local sub=${1:-toggle}
     case "$sub" in
         on|enable)
             motd_require_writable
-            : > "$MOTD_FLAG"
+            write_flag_with_correct_ownership
+            bashrc_block_add
             print_enabled_message
             ;;
         off|disable)
             motd_require_writable
             rm -f "$MOTD_FLAG"
+            bashrc_block_remove
             echo "Greeting disabled."
             ;;
         status)
             if motd_enabled; then
                 echo "Greeting: enabled (every new interactive shell)."
+                if ! bashrc_block_present; then
+                    echo "Note: ~/.bashrc does not currently source the greeting; new"
+                    echo "non-login terminals will not show it. Run 'inhibit-charge motd"
+                    echo "off' then 'inhibit-charge motd on' to add the source line."
+                fi
             else
                 echo "Greeting: disabled."
             fi
@@ -113,9 +218,11 @@ cmd_motd() {
             motd_require_writable
             if motd_enabled; then
                 rm -f "$MOTD_FLAG"
+                bashrc_block_remove
                 echo "Greeting disabled."
             else
-                : > "$MOTD_FLAG"
+                write_flag_with_correct_ownership
+                bashrc_block_add
                 print_enabled_message
             fi
             ;;

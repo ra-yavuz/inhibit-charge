@@ -27,7 +27,7 @@ REPO_HOST=ra-yavuz.github.io/apt
 KEY_URL="https://${REPO_HOST}/pubkey.gpg"
 KEYRING=/etc/apt/keyrings/ra-yavuz.gpg
 SOURCES_LIST=/etc/apt/sources.list.d/ra-yavuz.list
-SOURCE_LINE="deb [signed-by=${KEYRING}] https://${REPO_HOST} stable main"
+SOURCE_LINE="deb [arch=amd64,arm64 signed-by=${KEYRING}] https://${REPO_HOST} stable main"
 PKG=inhibit-charge
 
 log()  { printf '[get.sh] %s\n' "$*"; }

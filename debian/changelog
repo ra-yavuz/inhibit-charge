@@ -1,3 +1,28 @@
+inhibit-charge (0.4.1-1) unstable; urgency=low
+
+  * Fix: the greeting now actually shows on every new terminal tab.
+    /etc/profile.d/ snippets are sourced only by login shells, but most
+    desktop terminal tabs are interactive non-login shells (sourced via
+    /etc/bash.bashrc, which on Ubuntu does NOT source profile.d). 'motd
+    on' now drops a small block into the invoking user's ~/.bashrc that
+    sources /etc/profile.d/50-inhibit-charge.sh. The block is delimited
+    by clear marker comments so 'motd off' removes it cleanly.
+  * Fix: the motd-enabled flag file is now created with
+    root:inhibit-charge ownership and 0664 mode, so group members can
+    flip it on/off without sudo. Previous versions created it as
+    root:root 0644 when 'sudo inhibit-charge motd' was used, leaving
+    the user unable to toggle it again without sudo.
+  * Fix: postinst migration now also corrects the flag file's
+    ownership for hosts upgrading from 0.4.0.
+  * 'motd status' now warns when the greeting is enabled but the
+    bashrc block is missing (e.g. the user removed it manually), and
+    explains how to re-add it.
+  * get.sh: pin the apt source line to 'arch=amd64,arm64' so apt does
+    not emit "doesn't support architecture 'i386'" notices on hosts
+    with i386 enabled in dpkg.
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Tue, 05 May 2026 15:50:00 +0000
+
 inhibit-charge (0.4.0-1) unstable; urgency=low
 
   * Switch the optional greeting from PAM-MOTD to /etc/profile.d/. The
