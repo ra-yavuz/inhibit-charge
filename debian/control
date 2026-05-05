@@ -19,7 +19,7 @@ Description: park laptop battery at a target charge level
  tools (TLP, GNOME, KDE), the battery does not trickle-cycle: it sits idle
  while AC powers the system, eliminating wear from repeated mini-cycles.
  .
- Two modes are exposed via the power-mode command:
+ Two modes are exposed via the inhibit-charge command:
    home    park the battery at TARGET% (default 60) on AC
    travel  charge fully to 100% for unplugged use
  .

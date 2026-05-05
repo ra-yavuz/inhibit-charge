@@ -27,17 +27,17 @@ Most Linux battery tools (TLP, GNOME, KDE, framework-tool) cap charging with sta
 - **`travel`**. Charge to 100% before you leave the house.
 
 ```
-$ power-mode status
+$ inhibit-charge status
 Mode:       home (target 60%)
 Battery:    60% (plugged in)
 Behaviour:  inhibit-charge
 Thresholds: 54% .. 60%
 Supplies:   bat=/sys/class/power_supply/BAT0 ac=/sys/class/power_supply/AC
 
-$ power-mode travel
+$ inhibit-charge travel
 Switched to travel mode (charge to 100%).
 
-$ power-mode home 70
+$ inhibit-charge home 70
 Switched to home mode (park at 70%).
 ```
 
@@ -81,7 +81,7 @@ echo "deb [signed-by=/etc/apt/keyrings/ra-yavuz.gpg] https://ra-yavuz.github.io/
 sudo apt update
 sudo apt install inhibit-charge
 sudo usermod -aG inhibit-charge $USER     # log out + back in (or run `newgrp inhibit-charge`)
-power-mode status
+inhibit-charge status
 ```
 
 ### Debian / Ubuntu (single .deb from GitHub Releases)
@@ -92,7 +92,7 @@ If you don't want to add the apt source, grab the latest `.deb` directly. No aut
 wget https://github.com/ra-yavuz/inhibit-charge/releases/latest/download/inhibit-charge_0.1.0-1_all.deb
 sudo apt install ./inhibit-charge_0.1.0-1_all.deb
 sudo usermod -aG inhibit-charge $USER
-power-mode status
+inhibit-charge status
 ```
 
 ### From source (any distro with systemd + bash)
@@ -102,12 +102,12 @@ git clone https://github.com/ra-yavuz/inhibit-charge.git
 cd inhibit-charge
 sudo make install
 sudo systemctl enable --now inhibit-charged
-power-mode status
+inhibit-charge status
 ```
 
 ## How it works
 
-A small daemon (`/usr/lib/inhibit-charge/inhibit-charged`, ~150 lines of bash) watches the kernel `power_supply` subsystem via `udevadm monitor` and reacts to plug/unplug, capacity, and CLI events instantly. The CLI (`power-mode`) writes the desired state to `/var/lib/inhibit-charge/{mode,target}` and signals the daemon over SIGHUP, so changes apply with zero polling delay. A slow 5-minute fallback timer handles slow self-discharge while parked.
+A small daemon (`/usr/lib/inhibit-charge/inhibit-charged`, ~150 lines of bash) watches the kernel `power_supply` subsystem via `udevadm monitor` and reacts to plug/unplug, capacity, and CLI events instantly. The CLI (`inhibit-charge`) writes the desired state to `/var/lib/inhibit-charge/{mode,target}` and signals the daemon over SIGHUP, so changes apply with zero polling delay. A slow 5-minute fallback timer handles slow self-discharge while parked.
 
 The recharge band (the hysteresis below the target where the daemon tops the battery back up) scales with the target: `max(2, target/10)` percentage points. So target=60 parks in the band 54..60, target=25 parks in 23..25. Hardware-level start/end thresholds are also set to the same band as a safety net: if the daemon ever dies, firmware still holds the battery at the target.
 
@@ -122,10 +122,10 @@ You can run TLP and inhibit-charge together. TLP's threshold settings still appl
 ```
 sudo systemctl status inhibit-charged
 sudo journalctl -u inhibit-charged -f
-power-mode status
+inhibit-charge status
 ```
 
-If `power-mode status` shows `Behaviour: (not supported)`, your hardware doesn't expose `inhibit-charge` and this tool can't help, sorry. TLP's thresholds will still cap charging.
+If `inhibit-charge status` shows `Behaviour: (not supported)`, your hardware doesn't expose `inhibit-charge` and this tool can't help, sorry. TLP's thresholds will still cap charging.
 
 ## License
 

@@ -17,7 +17,7 @@ deb:
 
 install:
 	install -d $(BINDIR) $(LIBDIR) $(UNITDIR) $(STATEDIR) $(DOCDIR)
-	install -m 0755 bin/power-mode                  $(BINDIR)/power-mode
+	install -m 0755 bin/inhibit-charge              $(BINDIR)/inhibit-charge
 	install -m 0755 lib/inhibit-charge/inhibit-charged $(LIBDIR)/inhibit-charged
 	install -m 0644 systemd/inhibit-charged.service $(UNITDIR)/inhibit-charged.service
 	install -m 0644 README.md                       $(DOCDIR)/README.md
@@ -30,7 +30,7 @@ install:
 	chmod 0664 $(STATEDIR)/mode $(STATEDIR)/target
 
 uninstall:
-	rm -f $(BINDIR)/power-mode
+	rm -f $(BINDIR)/inhibit-charge
 	rm -f $(LIBDIR)/inhibit-charged
 	rmdir --ignore-fail-on-non-empty $(LIBDIR) 2>/dev/null || true
 	rm -f $(UNITDIR)/inhibit-charged.service
@@ -38,7 +38,7 @@ uninstall:
 	rmdir --ignore-fail-on-non-empty $(DOCDIR) 2>/dev/null || true
 
 lint:
-	shellcheck -x bin/power-mode lib/inhibit-charge/inhibit-charged scripts/build-deb.sh debian/postinst debian/postrm
+	shellcheck -x bin/inhibit-charge lib/inhibit-charge/inhibit-charged scripts/build-deb.sh debian/postinst debian/postrm
 
 check: lint
 

@@ -1,3 +1,15 @@
+inhibit-charge (0.2.0-1) unstable; urgency=low
+
+  * Rename user-facing CLI from "power-mode" to "inhibit-charge".
+    The package name and daemon name (inhibit-charged) are unchanged;
+    only the command users type changes. Updates the binary path to
+    /usr/bin/inhibit-charge and updates all docs and help text.
+  * Add "events outside the author's control" clause to disclaimers
+    (supply-chain compromise, downstream modifications, AI/LLM output
+    in projects that integrate them, third-party service failures).
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Tue, 05 May 2026 14:00:00 +0000
+
 inhibit-charge (0.1.0-1) unstable; urgency=low
 
   * Initial release.

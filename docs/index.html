@@ -110,7 +110,7 @@
   "description": "A small Linux daemon and CLI that holds your laptop battery at a target charge level on AC using the kernel's inhibit-charge mode, instead of just capping with start/end charge thresholds.",
   "url": "https://ra-yavuz.github.io/inhibit-charge/",
   "downloadUrl": "https://github.com/ra-yavuz/inhibit-charge/releases",
-  "softwareVersion": "0.1.0",
+  "softwareVersion": "0.2.0",
   "license": "https://opensource.org/licenses/MIT",
   "author": {
     "@type": "Person",
@@ -163,13 +163,13 @@
 
   <h2>Two modes</h2>
   <p>
-    The CLI is <code>power-mode</code>:
+    The CLI is <code>inhibit-charge</code>:
   </p>
   <ul>
-    <li><code>power-mode home [TARGET]</code> &ndash; park at TARGET% on AC, default 60.</li>
-    <li><code>power-mode travel</code> &ndash; charge fully to 100% before unplugging.</li>
-    <li><code>power-mode toggle</code> &ndash; flip between the two.</li>
-    <li><code>power-mode status</code> &ndash; current mode, battery, AC, behaviour, thresholds.</li>
+    <li><code>inhibit-charge home [TARGET]</code> &ndash; park at TARGET% on AC, default 60.</li>
+    <li><code>inhibit-charge travel</code> &ndash; charge fully to 100% before unplugging.</li>
+    <li><code>inhibit-charge toggle</code> &ndash; flip between the two.</li>
+    <li><code>inhibit-charge status</code> &ndash; current mode, battery, AC, behaviour, thresholds.</li>
   </ul>
 
   <h2>Hardware support</h2>

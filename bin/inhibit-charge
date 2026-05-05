@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# power-mode: switch laptop battery between "home" (park at target%) and
-# "travel" (charge to 100). Part of the inhibit-charge package.
+# inhibit-charge: switch laptop battery between "home" (park at target%) and
+# "travel" (charge to 100). User-facing CLI for the inhibit-charge package.
 set -euo pipefail
 
 STATE_DIR=/var/lib/inhibit-charge
@@ -25,7 +25,7 @@ detect_supplies() {
 
 usage() {
     cat <<EOF
-Usage: power-mode <command>
+Usage: inhibit-charge <command>
 
 Commands:
   home [TARGET]   Park battery at TARGET% (default 60). Holds the battery
@@ -35,13 +35,15 @@ Commands:
   status          Show current mode, battery %, AC status, behaviour.
 
 Examples:
-  power-mode home          # park at 60% (default)
-  power-mode home 70       # park at 70%
-  power-mode travel        # before going out
+  inhibit-charge home        # park at 60% (default)
+  inhibit-charge home 70     # park at 70%
+  inhibit-charge travel      # before going out
 
 DISCLAIMER: This tool writes to your laptop's battery management
 interface. It is provided AS IS, WITHOUT WARRANTY OF ANY KIND. You are
 solely responsible for any damage to your battery, hardware, or data.
+The author is not liable for damage caused by events outside their
+control (supply-chain compromise, modifications made downstream, etc).
 See /usr/share/doc/inhibit-charge/README.md for the full disclaimer.
 EOF
 }
