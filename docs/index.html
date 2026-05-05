@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>inhibit-charge - Park your Linux laptop battery at a target charge level</title>
+<meta name="description" content="inhibit-charge: a small Linux daemon and CLI by Ramazan Yavuz that holds your laptop battery at a target percentage on AC using the kernel's inhibit-charge mode. No trickle cycling, no slow drift. Alternative to TLP charge thresholds.">
+<meta name="author" content="Ramazan Yavuz">
+<meta name="keywords" content="inhibit-charge, linux battery, battery park, charge_behaviour, charge threshold, tlp alternative, thinkpad battery linux, laptop battery longevity linux">
+<meta name="robots" content="index,follow">
+<link rel="canonical" href="https://ra-yavuz.github.io/inhibit-charge/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="inhibit-charge - Park your Linux laptop battery at a target charge">
+<meta property="og:description" content="Hold your laptop battery exactly at N% on AC using the kernel's inhibit-charge mode. No trickle cycling, unlike threshold-only tools.">
+<meta property="og:url" content="https://ra-yavuz.github.io/inhibit-charge/">
+<meta property="og:site_name" content="ra-yavuz">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="inhibit-charge - Park your Linux laptop battery at a target charge">
+<meta name="twitter:description" content="Hold your laptop battery exactly at N% on AC using the kernel's inhibit-charge mode. No trickle cycling.">
+<style>
+  :root {
+    --fg: #1a1a1a;
+    --muted: #5e5e5e;
+    --bg: #f4f1ec;
+    --card: #ffffff;
+    --line: #d8d4cc;
+    --code-bg: #ebe7e0;
+    --link: #0a4ca8;
+    --apt-bg: #eef2f8;
+    --warn-bg: #fff7d6;
+    --warn-fg: #5a4500;
+    --warn-line: #e8d36b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #ececec;
+      --muted: #9a9a9a;
+      --bg: #1c1d20;
+      --card: #25272b;
+      --line: #353941;
+      --code-bg: #14151a;
+      --link: #7cb0ff;
+      --apt-bg: #1f242d;
+      --warn-bg: #3a2e00;
+      --warn-fg: #f6e2a4;
+      --warn-line: #6a5500;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--fg); background: var(--bg);
+    line-height: 1.55;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 24px 96px; }
+  .crumb { font-size: 0.86rem; color: var(--muted); margin: 0 0 18px; }
+  h1 { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.7rem; margin: 0 0 6px; letter-spacing: -0.005em; }
+  p.tag { color: var(--muted); margin: 0 0 18px; font-size: 1rem; max-width: 60ch; }
+  h2 {
+    font-size: 1rem; margin: 36px 0 10px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted); font-weight: 600;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--code-bg); padding: 12px 14px; border-radius: 6px;
+    border: 1px solid var(--line); overflow-x: auto;
+    font-size: 0.86rem; line-height: 1.55; margin: 0;
+  }
+  pre code { background: transparent; padding: 0; }
+  .links-row a { margin-right: 14px; font-size: 0.95rem; }
+  .apt-section {
+    background: var(--apt-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 18px;
+  }
+  .apt-section h2 { margin-top: 0; }
+  .warn {
+    background: var(--warn-bg); color: var(--warn-fg);
+    border-left: 4px solid var(--warn-line);
+    padding: 12px 16px; border-radius: 4px;
+    font-size: 0.9rem; margin: 12px 0 0;
+  }
+  table.matrix { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  table.matrix th, table.matrix td {
+    text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.matrix th { color: var(--muted); font-weight: 600; }
+  footer {
+    margin-top: 56px; color: var(--muted); font-size: 0.85rem;
+    border-top: 1px solid var(--line); padding-top: 14px;
+  }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "inhibit-charge",
+  "applicationCategory": "UtilityApplication",
+  "operatingSystem": "Linux",
+  "description": "A small Linux daemon and CLI that holds your laptop battery at a target charge level on AC using the kernel's inhibit-charge mode, instead of just capping with start/end charge thresholds.",
+  "url": "https://ra-yavuz.github.io/inhibit-charge/",
+  "downloadUrl": "https://github.com/ra-yavuz/inhibit-charge/releases",
+  "softwareVersion": "0.1.0",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": {
+    "@type": "Person",
+    "name": "Ramazan Yavuz",
+    "url": "https://ra-yavuz.github.io/"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+</head>
+<body>
+<main>
+  <p class="crumb">
+    <a href="https://ra-yavuz.github.io/">ra-yavuz</a> &rsaquo; inhibit-charge
+  </p>
+
+  <h1>inhibit-charge</h1>
+  <p class="tag">
+    Park your Linux laptop battery at a target charge level using the kernel's
+    <code>inhibit-charge</code> mode. AC powers the system, the battery sits idle.
+    No trickle cycling, no slow drift.
+  </p>
+
+  <div class="links-row">
+    <a href="https://github.com/ra-yavuz/inhibit-charge">source</a>
+    <a href="https://github.com/ra-yavuz/inhibit-charge/releases">releases</a>
+    <a href="https://github.com/ra-yavuz/inhibit-charge#install">install</a>
+    <a href="https://github.com/ra-yavuz/inhibit-charge/issues">issues</a>
+  </div>
+
+  <h2>What it does</h2>
+  <p>
+    Most Linux battery tools (TLP, GNOME, KDE, framework-tool) cap charging with
+    start/end thresholds. That stops the battery at, say, 60% but the cell still
+    cycles: it self-discharges to the start threshold, the charger tops it back
+    up, and the loop repeats every few hours. Each of those mini-cycles wears
+    the battery.
+  </p>
+  <p>
+    <code>inhibit-charge</code> uses a different kernel feature
+    (<code>charge_behaviour=inhibit-charge</code> on
+    <code>/sys/class/power_supply/BAT*</code>) to <strong>hold the battery at the
+    target indefinitely</strong> while AC drives the system. When you unplug, it
+    switches back to <code>auto</code> so the battery discharges normally.
+  </p>
+
+  <h2>Two modes</h2>
+  <p>
+    The CLI is <code>power-mode</code>:
+  </p>
+  <ul>
+    <li><code>power-mode home [TARGET]</code> &ndash; park at TARGET% on AC, default 60.</li>
+    <li><code>power-mode travel</code> &ndash; charge fully to 100% before unplugging.</li>
+    <li><code>power-mode toggle</code> &ndash; flip between the two.</li>
+    <li><code>power-mode status</code> &ndash; current mode, battery, AC, behaviour, thresholds.</li>
+  </ul>
+
+  <h2>Hardware support</h2>
+  <p>
+    Requires Linux kernel &ge; 5.17 and a driver that exposes
+    <code>charge_behaviour</code> with <code>inhibit-charge</code> listed.
+    The daemon refuses to start on unsupported hardware with a clear error.
+  </p>
+  <table class="matrix">
+    <tr><th>Tier</th><th>Hardware</th><th>Driver</th><th>Status</th></tr>
+    <tr><td>1</td><td>ThinkPads (most since X220-ish)</td><td><code>thinkpad_acpi</code></td><td>works</td></tr>
+    <tr><td>1</td><td>Chromebooks / ChromeOS-EC laptops</td><td><code>cros_ec</code></td><td>works</td></tr>
+    <tr><td>2</td><td>Framework laptops</td><td><code>framework_laptop</code></td><td>works on recent EC firmware</td></tr>
+    <tr><td>2</td><td>System76 laptops</td><td><code>system76_acpi</code></td><td>varies by model</td></tr>
+    <tr><td>2</td><td>Some ASUS / IdeaPad</td><td><code>asus_wmi</code>, vendor drivers</td><td>varies</td></tr>
+    <tr><td>3</td><td>Most Dell, HP, MSI, Razer</td><td>(no <code>inhibit-charge</code>)</td><td>not supported, use TLP for thresholds</td></tr>
+  </table>
+
+  <h2>Quick check</h2>
+  <pre><code>cat /sys/class/power_supply/BAT0/charge_behaviour
+# expect to see: [auto] inhibit-charge ...</code></pre>
+
+  <h2>Install via apt repository (recommended)</h2>
+  <section class="apt-section">
+    <p>
+      The signed apt repository at
+      <a href="https://ra-yavuz.github.io/apt/">ra-yavuz.github.io/apt</a>
+      gives you automatic <code>apt upgrade</code> and GPG-verified packages.
+      One-time setup:
+    </p>
+    <pre><code>sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://ra-yavuz.github.io/apt/pubkey.gpg \
+  | sudo tee /etc/apt/keyrings/ra-yavuz.gpg &gt; /dev/null
+
+echo "deb [signed-by=/etc/apt/keyrings/ra-yavuz.gpg] https://ra-yavuz.github.io/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/ra-yavuz.list
+
+sudo apt update
+sudo apt install inhibit-charge
+sudo usermod -aG inhibit-charge $USER     # log out + back in</code></pre>
+  </section>
+
+  <h2>Install directly from GitHub</h2>
+  <p>
+    Alternatively, download the latest <code>.deb</code> from
+    <a href="https://github.com/ra-yavuz/inhibit-charge/releases">GitHub Releases</a>:
+  </p>
+  <pre><code>wget https://github.com/ra-yavuz/inhibit-charge/releases/latest/download/inhibit-charge_0.1.0-1_all.deb
+sudo apt install ./inhibit-charge_0.1.0-1_all.deb
+sudo usermod -aG inhibit-charge $USER</code></pre>
+
+  <h2>How it works</h2>
+  <p>
+    A small daemon (<code>/usr/lib/inhibit-charge/inhibit-charged</code>, around
+    150 lines of bash) watches the kernel <code>power_supply</code> subsystem
+    via <code>udevadm monitor</code> and reacts to plug/unplug, capacity, and
+    CLI events instantly. The CLI writes the desired state to
+    <code>/var/lib/inhibit-charge/{mode,target}</code> and signals the daemon
+    over <code>SIGHUP</code>, so changes apply with zero polling delay. A slow
+    5-minute fallback timer handles slow self-discharge while parked.
+  </p>
+  <p>
+    The recharge band scales with the target: <code>max(2, target/10)</code>
+    percentage points. So target=60 parks in 54..60, target=25 in 23..25.
+    Hardware-level start/end thresholds are also set to the same band as a
+    safety net: if the daemon ever dies, firmware still holds the battery at
+    the target.
+  </p>
+
+  <h2>Versus TLP, GNOME, KDE</h2>
+  <p>
+    These all expose start/end thresholds, which the kernel implements as
+    "stop charging at end, resume at start." That's a cycling band, not a hold.
+    <code>inhibit-charge</code> is a third state above thresholds: charging is
+    actively blocked while AC drives the system. This package layers a tiny
+    daemon on top of that kernel feature so it switches automatically with
+    plug state, and exposes a two-mode UX (<code>home</code> /
+    <code>travel</code>) over it. You can run TLP and inhibit-charge together.
+  </p>
+
+  <h2>Disclaimer / no warranty</h2>
+  <div class="warn">
+    This software writes to your laptop's battery management interface
+    (<code>/sys/class/power_supply/BAT*/charge_behaviour</code> and the charge
+    thresholds). It is provided <strong>as is, without warranty of any
+    kind</strong>, express or implied. The author is not liable for any
+    damage to battery, hardware, or data, however caused. Battery firmware
+    and kernel drivers vary widely between vendors, models, and firmware
+    revisions. Behaviour on your specific device may differ from what is
+    described here. Long-term parking of a lithium-ion battery at a fixed
+    state of charge has tradeoffs (calendar aging vs. cycle aging) that
+    depend on your battery chemistry, temperature, and usage. Read the
+    manufacturer's guidance for your laptop before relying on this tool.
+    By installing or running this software you accept full responsibility
+    for any consequences. Full text:
+    <a href="https://github.com/ra-yavuz/inhibit-charge#disclaimer--no-warranty">repo README</a>,
+    license: MIT.
+  </div>
+
+  <footer>
+    <p>
+      Author: <a href="https://ra-yavuz.github.io/">Ramazan Yavuz</a>.
+      Source: <a href="https://github.com/ra-yavuz/inhibit-charge">github.com/ra-yavuz/inhibit-charge</a>.
+      Apt repository: <a href="https://ra-yavuz.github.io/apt/">ra-yavuz.github.io/apt</a>.
+    </p>
+  </footer>
+</main>
+</body>
+</html>
