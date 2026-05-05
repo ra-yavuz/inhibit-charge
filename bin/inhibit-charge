@@ -69,6 +69,39 @@ motd_require_root_with_hint() {
     fi
 }
 
+# Print a warning if the system has no machinery to actually render MOTD.
+# Ubuntu / Debian: pam_motd reads /run/motd.dynamic, which is generated
+# by the 'update-motd' package. If that package is missing, our entry
+# is just a file nobody runs.
+motd_warn_if_no_renderer() {
+    if [ ! -d /run/motd.dynamic ] && [ ! -f /run/motd.dynamic ]; then
+        # On Debian/Ubuntu, this file is created at boot when update-motd
+        # is installed. If it does not exist, the renderer is missing.
+        if [ -d /etc/pam.d ] && grep -rq 'pam_motd.*motd=/run/motd.dynamic' /etc/pam.d 2>/dev/null; then
+            if ! command -v update-motd >/dev/null 2>&1 \
+                && ! dpkg -s update-motd >/dev/null 2>&1; then
+                cat <<EOF
+Note: PAM is configured to read /run/motd.dynamic, but the 'update-motd'
+package that generates it is not installed. Until you install it, the
+MOTD entry will be on disk but PAM will have nothing to display.
+
+  sudo apt install update-motd
+
+Then log in fresh (new SSH session, console login, or reboot).
+EOF
+            fi
+        fi
+    fi
+}
+
+print_enabled_message() {
+    echo "MOTD entry for inhibit-charge enabled. It will appear at the top of any"
+    echo "new login session (SSH login, console login, display-manager login)."
+    echo "(A new terminal tab in your existing desktop session will NOT show it,"
+    echo "because terminals do not run PAM.)"
+    motd_warn_if_no_renderer
+}
+
 cmd_motd() {
     local sub=${1:-toggle}
     if [ ! -e "$MOTD_FILE" ]; then
@@ -80,8 +113,7 @@ cmd_motd() {
         on|enable)
             motd_require_root_with_hint on
             chmod +x "$MOTD_FILE"
-            echo "MOTD entry for inhibit-charge enabled. It will appear on any new"
-            echo "login session (SSH login, console login, or 'bash -l')."
+            print_enabled_message
             ;;
         off|disable)
             motd_require_root_with_hint off
@@ -91,6 +123,7 @@ cmd_motd() {
         status)
             if motd_enabled; then
                 echo "MOTD entry for inhibit-charge: enabled (file is executable)."
+                motd_warn_if_no_renderer
             else
                 echo "MOTD entry for inhibit-charge: disabled (file is not executable)."
             fi
@@ -102,8 +135,7 @@ cmd_motd() {
                 echo "MOTD entry for inhibit-charge disabled."
             else
                 chmod +x "$MOTD_FILE"
-                echo "MOTD entry for inhibit-charge enabled. It will appear on any new"
-                echo "login session (SSH login, console login, or 'bash -l')."
+                print_enabled_message
             fi
             ;;
         *)

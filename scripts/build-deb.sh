@@ -37,6 +37,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Depends: bash (>= 4.0), systemd, udev, coreutils
+Recommends: update-motd
 Maintainer: Ramazan Yavuz <yavuzramazan1994@gmail.com>
 Homepage: https://github.com/ra-yavuz/inhibit-charge
 Description: park laptop battery at a target charge level

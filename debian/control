@@ -12,7 +12,8 @@ Rules-Requires-Root: no
 Package: inhibit-charge
 Architecture: all
 Depends: ${misc:Depends}, bash (>= 4.0), systemd, udev, coreutils
-Recommends: shellcheck
+Recommends: update-motd
+Suggests: shellcheck
 Description: park laptop battery at a target charge level
  inhibit-charge holds your laptop battery at a target percentage when on AC,
  using the kernel's charge_behaviour=inhibit-charge mode. Unlike threshold-only

@@ -2,6 +2,14 @@
 
 **Park your Linux laptop battery at a target charge using `inhibit-charge`. No trickle cycling, no slow drift. AC powers the system, the battery sits idle.**
 
+## Quick install (Debian / Ubuntu)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ra-yavuz/inhibit-charge/main/scripts/get.sh | sudo bash
+```
+
+Adds the [signed apt repository](https://ra-yavuz.github.io/apt/), installs the package, adds you to the `inhibit-charge` group. Future upgrades: `sudo apt upgrade`. Full removal: `sudo apt purge inhibit-charge`. Other install paths (manual apt setup, single `.deb`, from source) are documented further down in the [Install](#install) section.
+
 > ## Disclaimer / no warranty
 >
 > This software writes to your laptop's battery management interface (`/sys/class/power_supply/BAT*/charge_behaviour` and the charge thresholds). It is provided **as is, without warranty of any kind**, express or implied, including but not limited to merchantability, fitness for a particular purpose, and noninfringement.
@@ -43,12 +51,14 @@ Switched to home mode (park at 70%).
 
 ## Optional: show battery state at login (MOTD)
 
-The package ships a small file at `/etc/update-motd.d/50-inhibit-charge` that, when enabled, prints the current state at the top of every new login session (SSH, console, `bash -l`). It's disabled by default. To toggle:
+The package ships a small file at `/etc/update-motd.d/50-inhibit-charge` that, when enabled, prints the current state at the top of every new login session (SSH login, console login, display-manager login). It's disabled by default. To toggle:
 
 ```
 $ sudo inhibit-charge motd
-MOTD entry for inhibit-charge enabled. It will appear on any new
-login session (SSH login, console login, or 'bash -l').
+MOTD entry for inhibit-charge enabled. It will appear at the top of any
+new login session (SSH login, console login, display-manager login).
+(A new terminal tab in your existing desktop session will NOT show it,
+because terminals do not run PAM.)
 
 $ sudo inhibit-charge motd off
 MOTD entry for inhibit-charge disabled.
@@ -66,6 +76,8 @@ inhibit-charge: home mode, parked at 60%, currently 60% (plugged in).
 ```
 
 It's compatible with any other `update-motd.d` script (e.g. a separate quote-of-the-day tool). Each MOTD entry runs independently, in alphanumeric filename order.
+
+**Required for PAM-based MOTD on Debian/Ubuntu:** the `update-motd` package must be installed. The `inhibit-charge` package recommends it, so `apt install inhibit-charge` will pull it in by default. If you have `Install-Recommends "false"` in your apt config, install it explicitly: `sudo apt install update-motd`. Without it, the file is on disk but PAM has nothing to display.
 
 ## Hardware support
 

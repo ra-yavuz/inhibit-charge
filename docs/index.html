@@ -110,7 +110,7 @@
   "description": "A small Linux daemon and CLI that holds your laptop battery at a target charge level on AC using the kernel's inhibit-charge mode, instead of just capping with start/end charge thresholds.",
   "url": "https://ra-yavuz.github.io/inhibit-charge/",
   "downloadUrl": "https://github.com/ra-yavuz/inhibit-charge/releases",
-  "softwareVersion": "0.3.0",
+  "softwareVersion": "0.3.1",
   "license": "https://opensource.org/licenses/MIT",
   "author": {
     "@type": "Person",
@@ -141,9 +141,21 @@
   <div class="links-row">
     <a href="https://github.com/ra-yavuz/inhibit-charge">source</a>
     <a href="https://github.com/ra-yavuz/inhibit-charge/releases">releases</a>
-    <a href="https://github.com/ra-yavuz/inhibit-charge#install">install</a>
+    <a href="#install-quick">install</a>
     <a href="https://github.com/ra-yavuz/inhibit-charge/issues">issues</a>
   </div>
+
+  <h2 id="install-quick">Quick install (Debian / Ubuntu)</h2>
+  <section class="apt-section">
+    <p>One command. Adds the signed apt repository, installs the package.</p>
+    <pre><code>curl -fsSL https://raw.githubusercontent.com/ra-yavuz/inhibit-charge/main/scripts/get.sh | sudo bash</code></pre>
+    <p style="color: var(--muted); font-size: 0.92rem; margin-bottom: 0;">
+      Future upgrades: <code>sudo apt upgrade</code>. Full removal:
+      <code>sudo apt purge inhibit-charge</code>. Other install paths
+      (manual apt setup, single <code>.deb</code>, from source) appear
+      further down on this page.
+    </p>
+  </section>
 
   <h2>What it does</h2>
   <p>
@@ -177,19 +189,30 @@
   <p>
     The package ships a small <code>/etc/update-motd.d/50-inhibit-charge</code>
     that prints the current battery state at the top of every new login
-    session (SSH, console, <code>bash -l</code>). Disabled by default.
-    Enable it with <code>sudo inhibit-charge motd on</code>; disable it
-    again with <code>sudo inhibit-charge motd off</code>. The toggle just
-    flips the file's executable bit, so dpkg owns the file across
-    install / remove / purge.
+    session (SSH login, console login, display-manager login). Disabled
+    by default. Enable it with
+    <code>sudo inhibit-charge motd on</code>; disable it again with
+    <code>sudo inhibit-charge motd off</code>. The toggle just flips the
+    file's executable bit, so dpkg owns the file across install / remove
+    / purge.
   </p>
   <pre><code>$ sudo inhibit-charge motd
-MOTD entry for inhibit-charge enabled. It will appear on any new
-login session (SSH login, console login, or 'bash -l').</code></pre>
+MOTD entry for inhibit-charge enabled. It will appear at the top of any
+new login session (SSH login, console login, display-manager login).
+(A new terminal tab in your existing desktop session will NOT show it,
+because terminals do not run PAM.)</code></pre>
   <p>
     Compatible with any other <code>update-motd.d</code> script (such as a
     separate quote-of-the-day tool). Each MOTD entry runs independently
     in filename order.
+  </p>
+  <p style="color: var(--muted); font-size: 0.92rem;">
+    Requires the <code>update-motd</code> package on Debian / Ubuntu, which
+    generates <code>/run/motd.dynamic</code> for PAM. The
+    <code>inhibit-charge</code> package recommends it, so a normal
+    <code>apt install</code> pulls it in. If you do not install
+    recommends by default, run <code>sudo apt install update-motd</code>
+    explicitly.
   </p>
 
   <h2>Hardware support</h2>
