@@ -38,7 +38,7 @@ uninstall:
 	rmdir --ignore-fail-on-non-empty $(DOCDIR) 2>/dev/null || true
 
 lint:
-	shellcheck -x bin/power-mode lib/inhibit-charge/inhibit-charged
+	shellcheck -x bin/power-mode lib/inhibit-charge/inhibit-charged scripts/build-deb.sh debian/postinst debian/postrm
 
 check: lint
 

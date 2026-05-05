@@ -91,7 +91,8 @@ set_thresholds() {
 # Percentage of target so the recharge band scales with the set point:
 # target=60 -> band 54..60, target=25 -> band 23..25, target=80 -> band 72..80.
 hysteresis() {
-    local target=$1 h=$(( target / 10 ))
+    local target=$1
+    local h=$(( target / 10 ))
     [ "$h" -lt 2 ] && h=2
     echo "$h"
 }
@@ -146,8 +147,9 @@ apply
 # bus. read -t gives us the drift-timer fallback.
 udevadm monitor --kernel --subsystem-match=power_supply 2>/dev/null | \
 while true; do
-    if read -r -t "$DRIFT_INTERVAL" line; then
-        :  # power_supply event; re-evaluate
-    fi
+    # We don't care about the line contents, only that something happened.
+    # `read` returns 0 on a uevent and non-zero on the drift-timer timeout;
+    # either way we re-evaluate.
+    read -r -t "$DRIFT_INTERVAL" _ || true
     apply
 done
