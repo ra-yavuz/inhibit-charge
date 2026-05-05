@@ -1,0 +1,25 @@
+#!/bin/sh
+# postrm for inhibit-charge
+set -e
+
+GROUP=inhibit-charge
+STATE_DIR=/var/lib/inhibit-charge
+
+case "$1" in
+    purge)
+        rm -rf "$STATE_DIR"
+        if getent group "$GROUP" >/dev/null; then
+            delgroup --system "$GROUP" || true
+        fi
+        ;;
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

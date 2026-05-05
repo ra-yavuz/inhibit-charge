@@ -1,0 +1,33 @@
+[Unit]
+Description=inhibit-charge battery park daemon
+Documentation=https://github.com/ra-yavuz/inhibit-charge
+After=multi-user.target
+ConditionPathExists=/sys/class/power_supply
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/inhibit-charge/inhibit-charged
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+# Light hardening. The daemon must keep CAP_DAC_OVERRIDE off but does need
+# write access to /sys/class/power_supply, so we run as root with a few
+# straightforward restrictions.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateNetwork=true
+ProtectKernelTunables=false
+ProtectControlGroups=true
+ReadWritePaths=/sys/class/power_supply
+ReadOnlyPaths=/var/lib/inhibit-charge
+RestrictAddressFamilies=AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

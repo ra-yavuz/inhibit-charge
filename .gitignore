@@ -1,0 +1,20 @@
+# Debian build artifacts
+*.deb
+*.buildinfo
+*.changes
+*.dsc
+*.tar.*
+debian/.debhelper/
+debian/files
+debian/inhibit-charge/
+debian/inhibit-charge.substvars
+debian/debhelper-build-stamp
+
+# Editor / OS
+*~
+*.swp
+.DS_Store
+
+# Local
+build/
+dist/

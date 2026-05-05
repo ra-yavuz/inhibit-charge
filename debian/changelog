@@ -1,0 +1,9 @@
+inhibit-charge (0.1.0-1) unstable; urgency=low
+
+  * Initial release.
+  * Event-driven daemon (udev + SIGHUP + drift timer).
+  * Percentage-based hysteresis (max(2, target/10)).
+  * home/travel modes with auto-detect of BAT/AC supplies.
+  * Hardware capability check at startup.
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Tue, 05 May 2026 12:00:00 +0000

@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# inhibit-charged: battery park daemon for the inhibit-charge package.
+#
+# Holds the battery at a target level when on AC, by flipping the kernel's
+# charge_behaviour between "auto" and "inhibit-charge". When unplugged,
+# does nothing (battery discharges normally).
+#
+# Wakes on:
+#   - power_supply uevents (AC plug/unplug, capacity change), via
+#     `udevadm monitor --kernel --subsystem-match=power_supply`
+#   - SIGHUP from the CLI when state files change
+#   - a slow drift timer (default 300s) for self-discharge top-up
+#
+# Reads state from /var/lib/inhibit-charge/{mode,target}.
+set -euo pipefail
+
+STATE_DIR=${STATE_DIR:-/var/lib/inhibit-charge}
+DRIFT_INTERVAL=${DRIFT_INTERVAL:-300}
+
+log() { printf '%s inhibit-charged: %s\n' "$(date -u +%FT%TZ)" "$*"; }
+
+# Auto-detect first Battery and first Mains-like supply.
+detect_supplies() {
+    local d type
+    BAT=""
+    AC=""
+    for d in /sys/class/power_supply/*; do
+        [ -r "$d/type" ] || continue
+        type=$(cat "$d/type" 2>/dev/null || echo "")
+        case "$type" in
+            Battery) [ -z "$BAT" ] && BAT=$d ;;
+            Mains|USB|USB_PD|USB_PD_DRP|USB_C|ACAD) [ -z "$AC" ] && AC=$d ;;
+        esac
+    done
+    [ -n "$BAT" ] || { log "no battery found under /sys/class/power_supply"; exit 1; }
+    [ -n "$AC" ]  || { log "no AC/Mains supply found under /sys/class/power_supply"; exit 1; }
+    log "using BAT=$BAT AC=$AC"
+}
+
+# Refuse to run on hardware that can't do inhibit-charge.
+capability_check() {
+    if [ ! -r "$BAT/charge_behaviour" ]; then
+        log "$BAT/charge_behaviour does not exist on this kernel/hardware."
+        log "inhibit-charge requires kernel >= 5.17 and a driver that exposes charge_behaviour"
+        log "(thinkpad_acpi, cros_ec, framework_laptop, system76_acpi, asus_wmi, ...)."
+        exit 1
+    fi
+    if ! grep -q 'inhibit-charge' "$BAT/charge_behaviour"; then
+        log "this device's charge_behaviour does not list 'inhibit-charge'."
+        log "contents: $(cat "$BAT/charge_behaviour")"
+        log "inhibit-charge cannot run here. Use a threshold-based tool (e.g. TLP) instead."
+        exit 1
+    fi
+    if [ ! -w "$BAT/charge_behaviour" ]; then
+        log "$BAT/charge_behaviour is not writable. The daemon must run as root."
+        exit 1
+    fi
+}
+
+read_int() { cat "$1" 2>/dev/null || echo 0; }
+
+set_behaviour() {
+    local want=$1 cur
+    cur=$(grep -oP '\[\K[^\]]+' "$BAT/charge_behaviour" 2>/dev/null || echo "")
+    if [ "$cur" != "$want" ]; then
+        log "behaviour: $cur -> $want"
+        echo "$want" > "$BAT/charge_behaviour"
+    fi
+}
+
+set_thresholds() {
+    local start=$1 end=$2 cur_start cur_end
+    [ -w "$BAT/charge_control_start_threshold" ] || return 0
+    [ -w "$BAT/charge_control_end_threshold" ]   || return 0
+    cur_start=$(read_int "$BAT/charge_control_start_threshold")
+    cur_end=$(read_int "$BAT/charge_control_end_threshold")
+    # Firmware enforces start <= end at all times. Pick write order so the
+    # invariant is never violated mid-update.
+    if [ "$end" -gt "$cur_end" ]; then
+        [ "$cur_end"   != "$end"   ] && echo "$end"   > "$BAT/charge_control_end_threshold"
+        [ "$cur_start" != "$start" ] && echo "$start" > "$BAT/charge_control_start_threshold"
+    else
+        [ "$cur_start" != "$start" ] && echo "$start" > "$BAT/charge_control_start_threshold"
+        [ "$cur_end"   != "$end"   ] && echo "$end"   > "$BAT/charge_control_end_threshold"
+    fi
+    return 0
+}
+
+# hysteresis(target) = max(2, target / 10).
+# Floor of 2 absorbs 1% capacity jitter without flapping behaviour.
+# Percentage of target so the recharge band scales with the set point:
+# target=60 -> band 54..60, target=25 -> band 23..25, target=80 -> band 72..80.
+hysteresis() {
+    local target=$1 h=$(( target / 10 ))
+    [ "$h" -lt 2 ] && h=2
+    echo "$h"
+}
+
+apply() {
+    local mode target capacity ac_online h start
+    mode=$(cat "$STATE_DIR/mode" 2>/dev/null || echo home)
+    target=$(cat "$STATE_DIR/target" 2>/dev/null || echo 60)
+    capacity=$(read_int "$BAT/capacity")
+    ac_online=$(read_int "$AC/online")
+
+    case "$mode" in
+        travel)
+            set_thresholds 95 100
+            set_behaviour auto
+            ;;
+        home|*)
+            h=$(hysteresis "$target")
+            start=$(( target - h ))
+            # Hardware safety net: if the daemon dies, firmware still parks
+            # at target and only tops up after capacity drifts past start.
+            set_thresholds "$start" "$target"
+            if [ "$ac_online" = "1" ]; then
+                if [ "$capacity" -lt "$start" ]; then
+                    set_behaviour auto
+                elif [ "$capacity" -ge "$target" ]; then
+                    set_behaviour inhibit-charge
+                fi
+                # Between start and target: leave behaviour as-is. If we
+                # were charging, keep going to target. If we were parked
+                # and drifted down, stay parked until we cross start.
+            else
+                set_behaviour auto
+            fi
+            ;;
+    esac
+}
+
+trap 'log "got SIGHUP, re-evaluating"; apply' HUP
+trap 'log "shutting down"; exit 0' TERM INT
+
+detect_supplies
+capability_check
+
+log "DISCLAIMER: provided AS IS, no warranty. You accept all risk for"
+log "DISCLAIMER: any damage to battery, hardware, or data. See"
+log "DISCLAIMER: /usr/share/doc/inhibit-charge/README.md for full text."
+log "starting; drift interval ${DRIFT_INTERVAL}s"
+apply
+
+# Event source: udevadm monitor emits one line per uevent on the kernel
+# bus. read -t gives us the drift-timer fallback.
+udevadm monitor --kernel --subsystem-match=power_supply 2>/dev/null | \
+while true; do
+    if read -r -t "$DRIFT_INTERVAL" line; then
+        :  # power_supply event; re-evaluate
+    fi
+    apply
+done

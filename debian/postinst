@@ -1,0 +1,44 @@
+#!/bin/sh
+# postinst for inhibit-charge
+set -e
+
+GROUP=inhibit-charge
+STATE_DIR=/var/lib/inhibit-charge
+
+case "$1" in
+    configure)
+        # Create the inhibit-charge group if missing. Members of this group
+        # can write to the state files via the group-writable permission
+        # below; no sudo is needed for the CLI.
+        if ! getent group "$GROUP" >/dev/null; then
+            addgroup --system "$GROUP"
+        fi
+
+        install -d -o root -g "$GROUP" -m 0775 "$STATE_DIR"
+        for f in mode target; do
+            if [ ! -e "$STATE_DIR/$f" ]; then
+                case "$f" in
+                    mode)   echo home > "$STATE_DIR/$f" ;;
+                    target) echo 60   > "$STATE_DIR/$f" ;;
+                esac
+            fi
+            chown root:"$GROUP" "$STATE_DIR/$f"
+            chmod 0664 "$STATE_DIR/$f"
+        done
+
+        # Allow the daemon to reload via systemctl from any group member.
+        # systemd handles this via PolicyKit; we don't need a polkit rule
+        # because the CLI falls back gracefully if reload-or-restart fails.
+        :
+        ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

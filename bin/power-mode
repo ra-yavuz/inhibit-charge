@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# power-mode: switch laptop battery between "home" (park at target%) and
+# "travel" (charge to 100). Part of the inhibit-charge package.
+set -euo pipefail
+
+STATE_DIR=/var/lib/inhibit-charge
+SERVICE=inhibit-charged.service
+
+# Auto-detect the first BAT* and first AC-like supply. Falls back to BAT0/AC.
+detect_supplies() {
+    local d type
+    BAT=""
+    AC=""
+    for d in /sys/class/power_supply/*; do
+        [ -r "$d/type" ] || continue
+        type=$(cat "$d/type" 2>/dev/null || echo "")
+        case "$type" in
+            Battery) [ -z "$BAT" ] && BAT=$d ;;
+            Mains|USB|USB_PD|USB_PD_DRP|USB_C|ACAD) [ -z "$AC" ] && AC=$d ;;
+        esac
+    done
+    [ -n "$BAT" ] || BAT=/sys/class/power_supply/BAT0
+    [ -n "$AC" ]  || AC=/sys/class/power_supply/AC
+}
+
+usage() {
+    cat <<EOF
+Usage: power-mode <command>
+
+Commands:
+  home [TARGET]   Park battery at TARGET% (default 60). Holds the battery
+                  there indefinitely on AC using inhibit-charge.
+  travel          Charge fully to 100% for unplugged use.
+  toggle          Flip between home and travel.
+  status          Show current mode, battery %, AC status, behaviour.
+
+Examples:
+  power-mode home          # park at 60% (default)
+  power-mode home 70       # park at 70%
+  power-mode travel        # before going out
+
+DISCLAIMER: This tool writes to your laptop's battery management
+interface. It is provided AS IS, WITHOUT WARRANTY OF ANY KIND. You are
+solely responsible for any damage to your battery, hardware, or data.
+See /usr/share/doc/inhibit-charge/README.md for the full disclaimer.
+EOF
+}
+
+reload_daemon() {
+    # Best-effort: tell the daemon to re-evaluate now. If the unit is not
+    # active or the user lacks permission, fall back to the daemon's own
+    # event/timer loop (next firing applies the change).
+    systemctl reload-or-restart --no-block "$SERVICE" 2>/dev/null || \
+        systemctl kill --signal=HUP "$SERVICE" 2>/dev/null || true
+}
+
+write_state() {
+    local mode=$1 target=${2:-}
+    if [ ! -w "$STATE_DIR/mode" ]; then
+        echo "Error: $STATE_DIR/mode is not writable by your user." >&2
+        echo "Hint: add yourself to the 'inhibit-charge' group:" >&2
+        echo "  sudo usermod -aG inhibit-charge \$USER  (then log out + back in)" >&2
+        exit 1
+    fi
+    printf '%s\n' "$mode" > "$STATE_DIR/mode"
+    if [ -n "$target" ]; then
+        printf '%s\n' "$target" > "$STATE_DIR/target"
+    fi
+    reload_daemon
+}
+
+show_status() {
+    detect_supplies
+    local mode target capacity ac behaviour start end ac_str
+    mode=$(cat "$STATE_DIR/mode" 2>/dev/null || echo "(unset)")
+    target=$(cat "$STATE_DIR/target" 2>/dev/null || echo "(unset)")
+    capacity=$(cat "$BAT/capacity" 2>/dev/null || echo "?")
+    ac=$(cat "$AC/online" 2>/dev/null || echo "0")
+    if [ -r "$BAT/charge_behaviour" ]; then
+        behaviour=$(grep -oP '\[\K[^\]]+' "$BAT/charge_behaviour" || echo "?")
+    else
+        behaviour="(not supported)"
+    fi
+    start=$(cat "$BAT/charge_control_start_threshold" 2>/dev/null || echo "?")
+    end=$(cat "$BAT/charge_control_end_threshold" 2>/dev/null || echo "?")
+
+    [ "$ac" = "1" ] && ac_str="plugged in" || ac_str="on battery"
+
+    printf "Mode:       %s (target %s%%)\n" "$mode" "$target"
+    printf "Battery:    %s%% (%s)\n" "$capacity" "$ac_str"
+    printf "Behaviour:  %s\n" "$behaviour"
+    printf "Thresholds: %s%% .. %s%%\n" "$start" "$end"
+    printf "Supplies:   bat=%s ac=%s\n" "$BAT" "$AC"
+}
+
+cmd=${1:-status}
+case "$cmd" in
+    home)
+        target=${2:-60}
+        if ! [[ "$target" =~ ^[0-9]+$ ]] || [ "$target" -lt 20 ] || [ "$target" -gt 95 ]; then
+            echo "Error: TARGET must be 20..95" >&2
+            exit 1
+        fi
+        write_state home "$target"
+        echo "Switched to home mode (park at ${target}%)."
+        ;;
+    travel)
+        write_state travel
+        echo "Switched to travel mode (charge to 100%)."
+        ;;
+    toggle)
+        cur=$(cat "$STATE_DIR/mode" 2>/dev/null || echo home)
+        if [ "$cur" = "travel" ]; then
+            write_state home
+            echo "Toggled: travel -> home (park at $(cat "$STATE_DIR/target")%)."
+        else
+            write_state travel
+            echo "Toggled: home -> travel (charge to 100%)."
+        fi
+        ;;
+    status|"")
+        show_status
+        ;;
+    -h|--help|help)
+        usage
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac
