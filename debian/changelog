@@ -1,3 +1,25 @@
+inhibit-charge (0.4.0-1) unstable; urgency=low
+
+  * Switch the optional greeting from PAM-MOTD to /etc/profile.d/. The
+    new mechanism is sourced by every interactive shell on Debian and
+    Ubuntu, so the greeting shows up on every new terminal tab/window
+    without depending on PAM, the update-motd package, SSH login, or
+    /run/motd.dynamic. This matches the laptop-user mental model
+    ("when I open a terminal I see it") and matches what the original
+    power-mode tool did via ~/.bashrc.
+  * Reposition the feature in the docs as user UI candy, not a system
+    MOTD. Drop all language about "login session", "fresh login",
+    "PAM", and "/etc/update-motd.d/". Make clear that this is for
+    laptop users opening terminals, not headless-server logins.
+  * Drop the Recommends: update-motd dependency. The new mechanism
+    needs no external package.
+  * postinst migrates from <0.4.0: removes the old
+    /etc/update-motd.d/50-inhibit-charge file on upgrade.
+  * The toggle is now a flag file at /var/lib/inhibit-charge/motd-enabled.
+    Group members of 'inhibit-charge' can flip it without sudo.
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Tue, 05 May 2026 15:30:00 +0000
+
 inhibit-charge (0.3.1-1) unstable; urgency=low
 
   * Recommends: update-motd. On Debian/Ubuntu, PAM reads MOTD from

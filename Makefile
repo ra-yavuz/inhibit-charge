@@ -20,8 +20,8 @@ install:
 	install -m 0755 bin/inhibit-charge              $(BINDIR)/inhibit-charge
 	install -m 0755 lib/inhibit-charge/inhibit-charged $(LIBDIR)/inhibit-charged
 	install -m 0644 systemd/inhibit-charged.service $(UNITDIR)/inhibit-charged.service
-	install -d $(DESTDIR)/etc/update-motd.d
-	install -m 0644 update-motd.d/50-inhibit-charge $(DESTDIR)/etc/update-motd.d/50-inhibit-charge
+	install -d $(DESTDIR)/etc/profile.d
+	install -m 0644 profile.d/50-inhibit-charge.sh $(DESTDIR)/etc/profile.d/50-inhibit-charge.sh
 	install -m 0644 README.md                       $(DOCDIR)/README.md
 	install -m 0644 LICENSE                         $(DOCDIR)/LICENSE
 	# Seed default state if not present. The postinst (or local installer)
@@ -36,7 +36,7 @@ uninstall:
 	rm -f $(LIBDIR)/inhibit-charged
 	rmdir --ignore-fail-on-non-empty $(LIBDIR) 2>/dev/null || true
 	rm -f $(UNITDIR)/inhibit-charged.service
-	rm -f $(DESTDIR)/etc/update-motd.d/50-inhibit-charge
+	rm -f $(DESTDIR)/etc/profile.d/50-inhibit-charge.sh
 	rm -f $(DOCDIR)/README.md $(DOCDIR)/LICENSE
 	rmdir --ignore-fail-on-non-empty $(DOCDIR) 2>/dev/null || true
 

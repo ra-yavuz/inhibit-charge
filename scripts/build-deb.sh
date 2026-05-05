@@ -17,14 +17,15 @@ mkdir -p "$PKG_DIR/DEBIAN" \
          "$PKG_DIR/usr/lib/inhibit-charge" \
          "$PKG_DIR/usr/share/doc/inhibit-charge" \
          "$PKG_DIR/lib/systemd/system" \
-         "$PKG_DIR/etc/update-motd.d"
+         "$PKG_DIR/etc/profile.d"
 
 install -m 0755 "$ROOT/bin/inhibit-charge"                       "$PKG_DIR/usr/bin/inhibit-charge"
 install -m 0755 "$ROOT/lib/inhibit-charge/inhibit-charged"       "$PKG_DIR/usr/lib/inhibit-charge/inhibit-charged"
 install -m 0644 "$ROOT/systemd/inhibit-charged.service"          "$PKG_DIR/lib/systemd/system/inhibit-charged.service"
-# MOTD entry is shipped non-executable so it is disabled by default.
-# 'inhibit-charge motd on' chmods +x to enable.
-install -m 0644 "$ROOT/update-motd.d/50-inhibit-charge"          "$PKG_DIR/etc/update-motd.d/50-inhibit-charge"
+# Greeting snippet sourced by every interactive shell. The script
+# short-circuits unless /var/lib/inhibit-charge/motd-enabled exists,
+# so the default install is silent. Toggle with 'inhibit-charge motd'.
+install -m 0644 "$ROOT/profile.d/50-inhibit-charge.sh"           "$PKG_DIR/etc/profile.d/50-inhibit-charge.sh"
 install -m 0644 "$ROOT/README.md"                                "$PKG_DIR/usr/share/doc/inhibit-charge/README.md"
 install -m 0644 "$ROOT/LICENSE"                                  "$PKG_DIR/usr/share/doc/inhibit-charge/copyright"
 install -m 0755 "$ROOT/debian/postinst"                          "$PKG_DIR/DEBIAN/postinst"
@@ -37,7 +38,6 @@ Section: utils
 Priority: optional
 Architecture: all
 Depends: bash (>= 4.0), systemd, udev, coreutils
-Recommends: update-motd
 Maintainer: Ramazan Yavuz <yavuzramazan1994@gmail.com>
 Homepage: https://github.com/ra-yavuz/inhibit-charge
 Description: park laptop battery at a target charge level

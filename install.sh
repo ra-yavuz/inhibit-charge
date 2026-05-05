@@ -62,19 +62,11 @@ ensure_state_dir() {
 }
 
 install_files() {
-    install -d "$PREFIX/bin" "$PREFIX/lib/inhibit-charge" "$UNIT_DIR" "$PREFIX/share/doc/inhibit-charge" /etc/update-motd.d
+    install -d "$PREFIX/bin" "$PREFIX/lib/inhibit-charge" "$UNIT_DIR" "$PREFIX/share/doc/inhibit-charge" /etc/profile.d
     install -m 0755 "$ROOT/bin/inhibit-charge"                     "$PREFIX/bin/inhibit-charge"
     install -m 0755 "$ROOT/lib/inhibit-charge/inhibit-charged"     "$PREFIX/lib/inhibit-charge/inhibit-charged"
     install -m 0644 "$ROOT/systemd/inhibit-charged.service"        "$UNIT_DIR/$SERVICE"
-    # MOTD entry: shipped non-executable so it is disabled by default.
-    # Preserve any existing executable bit so re-running install.sh on
-    # a system where the user has already enabled MOTD does not silently
-    # turn it back off.
-    if [ -x /etc/update-motd.d/50-inhibit-charge ]; then
-        install -m 0755 "$ROOT/update-motd.d/50-inhibit-charge"    /etc/update-motd.d/50-inhibit-charge
-    else
-        install -m 0644 "$ROOT/update-motd.d/50-inhibit-charge"    /etc/update-motd.d/50-inhibit-charge
-    fi
+    install -m 0644 "$ROOT/profile.d/50-inhibit-charge.sh"         /etc/profile.d/50-inhibit-charge.sh
     if [ -f "$ROOT/README.md" ]; then install -m 0644 "$ROOT/README.md" "$PREFIX/share/doc/inhibit-charge/README.md"; fi
     if [ -f "$ROOT/LICENSE"   ]; then install -m 0644 "$ROOT/LICENSE"   "$PREFIX/share/doc/inhibit-charge/copyright"; fi
 }
@@ -84,6 +76,8 @@ remove_files() {
     rm -f "$PREFIX/lib/inhibit-charge/inhibit-charged"
     rmdir --ignore-fail-on-non-empty "$PREFIX/lib/inhibit-charge" 2>/dev/null || true
     rm -f "$UNIT_DIR/$SERVICE"
+    rm -f /etc/profile.d/50-inhibit-charge.sh
+    # Clean up old PAM-based motd file if migrating from <0.4.0:
     rm -f /etc/update-motd.d/50-inhibit-charge
     rm -f "$PREFIX/share/doc/inhibit-charge/README.md"
     rm -f "$PREFIX/share/doc/inhibit-charge/copyright"

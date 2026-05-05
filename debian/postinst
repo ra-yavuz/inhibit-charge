@@ -7,6 +7,12 @@ STATE_DIR=/var/lib/inhibit-charge
 
 case "$1" in
     configure)
+        # Migrate from <0.4.0: drop the old PAM-MOTD entry if it exists.
+        # 0.4.0 ships /etc/profile.d/50-inhibit-charge.sh instead.
+        if [ -e /etc/update-motd.d/50-inhibit-charge ]; then
+            rm -f /etc/update-motd.d/50-inhibit-charge
+        fi
+
         # Create the inhibit-charge group if missing. Members of this group
         # can write to the state files via the group-writable permission
         # below; no sudo is needed for the CLI.

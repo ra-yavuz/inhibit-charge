@@ -110,7 +110,7 @@
   "description": "A small Linux daemon and CLI that holds your laptop battery at a target charge level on AC using the kernel's inhibit-charge mode, instead of just capping with start/end charge thresholds.",
   "url": "https://ra-yavuz.github.io/inhibit-charge/",
   "downloadUrl": "https://github.com/ra-yavuz/inhibit-charge/releases",
-  "softwareVersion": "0.3.1",
+  "softwareVersion": "0.4.0",
   "license": "https://opensource.org/licenses/MIT",
   "author": {
     "@type": "Person",
@@ -182,37 +182,35 @@
     <li><code>inhibit-charge travel</code> &ndash; charge fully to 100% before unplugging.</li>
     <li><code>inhibit-charge toggle</code> &ndash; flip between the two.</li>
     <li><code>inhibit-charge status</code> &ndash; current mode, battery, AC, behaviour, thresholds.</li>
-    <li><code>sudo inhibit-charge motd [on|off]</code> &ndash; toggle the optional login-greeting line shown by <code>/etc/update-motd.d/</code>. Disabled by default.</li>
+    <li><code>inhibit-charge motd [on|off]</code> &ndash; toggle the optional terminal greeting (UI candy printed at the top of every new interactive shell). Disabled by default.</li>
   </ul>
 
-  <h2>Optional: show state at login</h2>
+  <h2>Optional: terminal greeting</h2>
   <p>
-    The package ships a small <code>/etc/update-motd.d/50-inhibit-charge</code>
-    that prints the current battery state at the top of every new login
-    session (SSH login, console login, display-manager login). Disabled
-    by default. Enable it with
-    <code>sudo inhibit-charge motd on</code>; disable it again with
-    <code>sudo inhibit-charge motd off</code>. The toggle just flips the
-    file's executable bit, so dpkg owns the file across install / remove
-    / purge.
+    UI candy for the user: the current battery state printed at the top
+    of every new interactive shell. Open a new terminal tab, see your
+    battery state. <strong>Not</strong> a system MOTD, not a PAM login
+    banner, not headless-server territory. Just a snippet sourced by
+    every interactive shell.
   </p>
-  <pre><code>$ sudo inhibit-charge motd
-MOTD entry for inhibit-charge enabled. It will appear at the top of any
-new login session (SSH login, console login, display-manager login).
-(A new terminal tab in your existing desktop session will NOT show it,
-because terminals do not run PAM.)</code></pre>
   <p>
-    Compatible with any other <code>update-motd.d</code> script (such as a
-    separate quote-of-the-day tool). Each MOTD entry runs independently
-    in filename order.
+    Disabled by default. No sudo needed to toggle if you are in the
+    <code>inhibit-charge</code> group:
   </p>
-  <p style="color: var(--muted); font-size: 0.92rem;">
-    Requires the <code>update-motd</code> package on Debian / Ubuntu, which
-    generates <code>/run/motd.dynamic</code> for PAM. The
-    <code>inhibit-charge</code> package recommends it, so a normal
-    <code>apt install</code> pulls it in. If you do not install
-    recommends by default, run <code>sudo apt install update-motd</code>
-    explicitly.
+  <pre><code>$ inhibit-charge motd
+Greeting enabled. The current battery state will be shown at the top
+of every new interactive shell (terminal tabs, SSH, console).
+
+$ inhibit-charge motd off
+Greeting disabled.</code></pre>
+  <p>
+    How it works: the package ships
+    <code>/etc/profile.d/50-inhibit-charge.sh</code>, which every
+    interactive shell sources. The script short-circuits unless
+    <code>/var/lib/inhibit-charge/motd-enabled</code> exists, so the
+    default install is silent. The toggle just creates or removes that
+    flag file. dpkg owns both, so <code>apt purge</code> removes them
+    cleanly.
   </p>
 
   <h2>Hardware support</h2>

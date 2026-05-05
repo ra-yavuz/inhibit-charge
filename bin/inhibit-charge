@@ -33,15 +33,15 @@ Commands:
   travel           Charge fully to 100% for unplugged use.
   toggle           Flip between home and travel.
   status           Show current mode, battery %, AC status, behaviour.
-  motd [on|off]    Toggle the inhibit-charge line in /etc/update-motd.d/
-                   (the message shown at login). With no argument, toggle.
-                   With "status", just report. Needs sudo.
+  motd [on|off]    Toggle the greeting shown at the top of every new
+                   interactive shell. With no argument, toggle. With
+                   "status", just report.
 
 Examples:
   inhibit-charge home        # park at 60% (default)
   inhibit-charge home 70     # park at 70%
   inhibit-charge travel      # before going out
-  sudo inhibit-charge motd   # toggle login-greeting line on/off
+  inhibit-charge motd        # toggle terminal greeting on/off
 
 DISCLAIMER: This tool writes to your laptop's battery management
 interface. It is provided AS IS, WITHOUT WARRANTY OF ANY KIND. You are
@@ -52,89 +52,70 @@ See /usr/share/doc/inhibit-charge/README.md for the full disclaimer.
 EOF
 }
 
-# Path to the MOTD entry file. Shipped non-executable; the 'motd on'
-# subcommand chmods it +x so PAM's run-parts will pick it up. dpkg owns
-# the file across install/remove, so toggling does not leak files.
-MOTD_FILE=/etc/update-motd.d/50-inhibit-charge
+# The greeting is implemented via /etc/profile.d/50-inhibit-charge.sh,
+# which is always sourced by every interactive shell on Debian/Ubuntu,
+# but short-circuits unless this flag file exists. So the toggle is just
+# a flag file under the state dir, owned by root:inhibit-charge so the
+# CLI itself can flip it without sudo when run by a group member.
+MOTD_FLAG=/var/lib/inhibit-charge/motd-enabled
+PROFILE_FILE=/etc/profile.d/50-inhibit-charge.sh
 
 motd_enabled() {
-    [ -x "$MOTD_FILE" ]
+    [ -f "$MOTD_FLAG" ]
 }
 
-motd_require_root_with_hint() {
-    if [ "$(id -u)" -ne 0 ]; then
-        echo "Error: '$MOTD_FILE' is owned by root, so toggling needs sudo." >&2
-        echo "Try: sudo inhibit-charge motd $1" >&2
-        exit 1
+motd_require_writable() {
+    if [ "$(id -u)" -eq 0 ]; then
+        return 0
     fi
-}
-
-# Print a warning if the system has no machinery to actually render MOTD.
-# Ubuntu / Debian: pam_motd reads /run/motd.dynamic, which is generated
-# by the 'update-motd' package. If that package is missing, our entry
-# is just a file nobody runs.
-motd_warn_if_no_renderer() {
-    if [ ! -d /run/motd.dynamic ] && [ ! -f /run/motd.dynamic ]; then
-        # On Debian/Ubuntu, this file is created at boot when update-motd
-        # is installed. If it does not exist, the renderer is missing.
-        if [ -d /etc/pam.d ] && grep -rq 'pam_motd.*motd=/run/motd.dynamic' /etc/pam.d 2>/dev/null; then
-            if ! command -v update-motd >/dev/null 2>&1 \
-                && ! dpkg -s update-motd >/dev/null 2>&1; then
-                cat <<EOF
-Note: PAM is configured to read /run/motd.dynamic, but the 'update-motd'
-package that generates it is not installed. Until you install it, the
-MOTD entry will be on disk but PAM will have nothing to display.
-
-  sudo apt install update-motd
-
-Then log in fresh (new SSH session, console login, or reboot).
-EOF
-            fi
-        fi
+    # Group members can write the flag file because the state dir is
+    # group-writable. No sudo needed in that case.
+    if [ -w "$STATE_DIR" ]; then
+        return 0
     fi
+    echo "Error: cannot write to $STATE_DIR." >&2
+    echo "Either: run with sudo, or add yourself to the inhibit-charge group" >&2
+    echo "and start a fresh shell session (newgrp inhibit-charge)." >&2
+    exit 1
 }
 
 print_enabled_message() {
-    echo "MOTD entry for inhibit-charge enabled. It will appear at the top of any"
-    echo "new login session (SSH login, console login, display-manager login)."
-    echo "(A new terminal tab in your existing desktop session will NOT show it,"
-    echo "because terminals do not run PAM.)"
-    motd_warn_if_no_renderer
+    echo "Greeting enabled. The current battery state will be shown at the top"
+    echo "of every new interactive shell (terminal tabs, SSH, console)."
+    if [ ! -e "$PROFILE_FILE" ]; then
+        echo
+        echo "Note: $PROFILE_FILE is missing. The package shipped it, but"
+        echo "something has removed it. Reinstall the package to restore it."
+    fi
 }
 
 cmd_motd() {
     local sub=${1:-toggle}
-    if [ ! -e "$MOTD_FILE" ]; then
-        echo "Error: $MOTD_FILE is not present." >&2
-        echo "This is shipped by the inhibit-charge package; reinstall it if missing." >&2
-        exit 1
-    fi
     case "$sub" in
         on|enable)
-            motd_require_root_with_hint on
-            chmod +x "$MOTD_FILE"
+            motd_require_writable
+            : > "$MOTD_FLAG"
             print_enabled_message
             ;;
         off|disable)
-            motd_require_root_with_hint off
-            chmod -x "$MOTD_FILE"
-            echo "MOTD entry for inhibit-charge disabled."
+            motd_require_writable
+            rm -f "$MOTD_FLAG"
+            echo "Greeting disabled."
             ;;
         status)
             if motd_enabled; then
-                echo "MOTD entry for inhibit-charge: enabled (file is executable)."
-                motd_warn_if_no_renderer
+                echo "Greeting: enabled (every new interactive shell)."
             else
-                echo "MOTD entry for inhibit-charge: disabled (file is not executable)."
+                echo "Greeting: disabled."
             fi
             ;;
         toggle|"")
-            motd_require_root_with_hint
+            motd_require_writable
             if motd_enabled; then
-                chmod -x "$MOTD_FILE"
-                echo "MOTD entry for inhibit-charge disabled."
+                rm -f "$MOTD_FLAG"
+                echo "Greeting disabled."
             else
-                chmod +x "$MOTD_FILE"
+                : > "$MOTD_FLAG"
                 print_enabled_message
             fi
             ;;
@@ -145,7 +126,7 @@ cmd_motd() {
     esac
 }
 
-# Compact one-liner used by /etc/update-motd.d/50-inhibit-charge.
+# Compact one-liner used by /etc/profile.d/50-inhibit-charge.sh.
 # Different from 'status' (which is a multi-line block for humans
 # inspecting state). Reads the same sysfs and state files; no I/O cost
 # beyond a few cat() calls. Hidden from the help output because it is
@@ -282,7 +263,7 @@ case "$cmd" in
         cmd_motd "${1:-}"
         ;;
     motd-render)
-        # Internal: invoked by /etc/update-motd.d/50-inhibit-charge.
+        # Internal: invoked by /etc/profile.d/50-inhibit-charge.sh.
         cmd_motd_render
         ;;
     -h|--help|help)

@@ -49,35 +49,33 @@ $ inhibit-charge home 70
 Switched to home mode (park at 70%).
 ```
 
-## Optional: show battery state at login (MOTD)
+## Optional: terminal greeting
 
-The package ships a small file at `/etc/update-motd.d/50-inhibit-charge` that, when enabled, prints the current state at the top of every new login session (SSH login, console login, display-manager login). It's disabled by default. To toggle:
+This is **UI candy for the user**: the current battery state printed at the top of every new interactive shell. Open a new terminal tab, see your battery state. It is **not** a system MOTD, not a login banner, not PAM, not headless-server territory. It is a simple snippet sourced by every interactive shell.
+
+Disabled by default. To toggle (no sudo needed if you are in the `inhibit-charge` group):
 
 ```
-$ sudo inhibit-charge motd
-MOTD entry for inhibit-charge enabled. It will appear at the top of any
-new login session (SSH login, console login, display-manager login).
-(A new terminal tab in your existing desktop session will NOT show it,
-because terminals do not run PAM.)
+$ inhibit-charge motd
+Greeting enabled. The current battery state will be shown at the top
+of every new interactive shell (terminal tabs, SSH, console).
 
-$ sudo inhibit-charge motd off
-MOTD entry for inhibit-charge disabled.
+$ inhibit-charge motd off
+Greeting disabled.
 
 $ inhibit-charge motd status
-MOTD entry for inhibit-charge: enabled (file is executable).
+Greeting: enabled (every new interactive shell).
 ```
 
-The toggle just flips the file's executable bit (PAM's `run-parts` only runs executable files). The file itself is owned by the package, so `apt purge inhibit-charge` removes it cleanly. No leaked files in `/etc/update-motd.d/` regardless of how often you toggle.
+How it works: the package ships `/etc/profile.d/50-inhibit-charge.sh`, which is sourced by every interactive shell on Debian/Ubuntu. The script short-circuits unless `/var/lib/inhibit-charge/motd-enabled` exists, so the default install is silent. The toggle just creates or removes that flag file. Both files are owned by the package, so `apt purge inhibit-charge` removes them cleanly.
 
-The MOTD line is one line, looking like:
+The greeting line is one line:
 
 ```
 inhibit-charge: home mode, parked at 60%, currently 60% (plugged in).
 ```
 
-It's compatible with any other `update-motd.d` script (e.g. a separate quote-of-the-day tool). Each MOTD entry runs independently, in alphanumeric filename order.
-
-**Required for PAM-based MOTD on Debian/Ubuntu:** the `update-motd` package must be installed. The `inhibit-charge` package recommends it, so `apt install inhibit-charge` will pull it in by default. If you have `Install-Recommends "false"` in your apt config, install it explicitly: `sudo apt install update-motd`. Without it, the file is on disk but PAM has nothing to display.
+If you want a battery line at SSH login (where PAM/MOTD applies, which is mostly relevant for headless servers), this is not the right tool. This is intentional: laptops are the target audience, and "terminal opens" is what laptop users actually do.
 
 ## Hardware support
 
