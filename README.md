@@ -91,27 +91,40 @@ cat /sys/class/power_supply/BAT0/charge_behaviour
 
 ### Debian / Ubuntu (recommended: apt repository)
 
-Add the [ra-yavuz Linux packages](https://ra-yavuz.github.io/apt/) apt repository, then install with `apt`. You get automatic updates via `apt upgrade`.
+Add the [ra-yavuz Linux packages](https://ra-yavuz.github.io/apt/) apt repository and install in one shot. You get automatic updates via `apt upgrade`, signed packages, and clean removal via `apt purge`.
 
 ```bash
-# 1. Trust the signing key
+curl -fsSL https://raw.githubusercontent.com/ra-yavuz/inhibit-charge/main/scripts/get.sh \
+  | sudo bash
+```
+
+Prefer to read the script first (advisable for any `curl | bash`)? Same end result, two commands:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ra-yavuz/inhibit-charge/main/scripts/get.sh -o get.sh
+less get.sh
+sudo bash get.sh
+```
+
+What the script does, all idempotent: installs the GPG keyring at `/etc/apt/keyrings/ra-yavuz.gpg`, adds `/etc/apt/sources.list.d/ra-yavuz.list` pointing at `https://ra-yavuz.github.io/apt`, runs `apt update`, installs `inhibit-charge`, and adds the invoking user to the `inhibit-charge` group.
+
+After install, you need a fresh shell session before the CLI works as your user (Linux freezes group lists at login, so a new terminal tab in the same session is not enough). Either run `newgrp inhibit-charge` in your terminal, log out and back in, or reboot. Then:
+
+```bash
+inhibit-charge status
+```
+
+If you'd rather wire up the apt source by hand, the equivalent steps are:
+
+```bash
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://ra-yavuz.github.io/apt/pubkey.gpg \
   | sudo tee /etc/apt/keyrings/ra-yavuz.gpg > /dev/null
-
-# 2. Add the apt source
 echo "deb [signed-by=/etc/apt/keyrings/ra-yavuz.gpg] https://ra-yavuz.github.io/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/ra-yavuz.list
-
-# 3. Install
 sudo apt update
 sudo apt install inhibit-charge
-# The install adds you to the inhibit-charge group. Your existing login
-# session does NOT yet have it: Linux freezes group lists at login, so a
-# new terminal tab in the same session is not enough. You need a fresh
-# shell session. Either run `newgrp inhibit-charge` in your terminal, or
-# log out and back in. Then:
-inhibit-charge status
+sudo usermod -aG inhibit-charge $USER
 ```
 
 ### Debian / Ubuntu (single .deb from GitHub Releases)
