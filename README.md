@@ -63,12 +63,35 @@ cat /sys/class/power_supply/BAT0/charge_behaviour
 
 ## Install
 
-### Debian / Ubuntu (.deb from GitHub Releases)
+### Debian / Ubuntu (recommended: apt repository)
 
+Add the [ra-yavuz Linux packages](https://ra-yavuz.github.io/apt/) apt repository, then install with `apt`. You get automatic updates via `apt upgrade`.
+
+```bash
+# 1. Trust the signing key
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://ra-yavuz.github.io/apt/pubkey.gpg \
+  | sudo tee /etc/apt/keyrings/ra-yavuz.gpg > /dev/null
+
+# 2. Add the apt source
+echo "deb [signed-by=/etc/apt/keyrings/ra-yavuz.gpg] https://ra-yavuz.github.io/apt stable main" \
+  | sudo tee /etc/apt/sources.list.d/ra-yavuz.list
+
+# 3. Install
+sudo apt update
+sudo apt install inhibit-charge
+sudo usermod -aG inhibit-charge $USER     # log out + back in (or run `newgrp inhibit-charge`)
+power-mode status
 ```
-wget https://github.com/ra-yavuz/inhibit-charge/releases/latest/download/inhibit-charge_0.1.0_all.deb
-sudo apt install ./inhibit-charge_0.1.0_all.deb
-sudo usermod -aG inhibit-charge $USER   # then log out + back in, or `newgrp inhibit-charge`
+
+### Debian / Ubuntu (single .deb from GitHub Releases)
+
+If you don't want to add the apt source, grab the latest `.deb` directly. No automatic updates.
+
+```bash
+wget https://github.com/ra-yavuz/inhibit-charge/releases/latest/download/inhibit-charge_0.1.0-1_all.deb
+sudo apt install ./inhibit-charge_0.1.0-1_all.deb
+sudo usermod -aG inhibit-charge $USER
 power-mode status
 ```
 
