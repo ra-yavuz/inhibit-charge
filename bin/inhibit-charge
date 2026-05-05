@@ -28,16 +28,20 @@ usage() {
 Usage: inhibit-charge <command>
 
 Commands:
-  home [TARGET]   Park battery at TARGET% (default 60). Holds the battery
-                  there indefinitely on AC using inhibit-charge.
-  travel          Charge fully to 100% for unplugged use.
-  toggle          Flip between home and travel.
-  status          Show current mode, battery %, AC status, behaviour.
+  home [TARGET]    Park battery at TARGET% (default 60). Holds the battery
+                   there indefinitely on AC using inhibit-charge.
+  travel           Charge fully to 100% for unplugged use.
+  toggle           Flip between home and travel.
+  status           Show current mode, battery %, AC status, behaviour.
+  motd [on|off]    Toggle the inhibit-charge line in /etc/update-motd.d/
+                   (the message shown at login). With no argument, toggle.
+                   With "status", just report. Needs sudo.
 
 Examples:
   inhibit-charge home        # park at 60% (default)
   inhibit-charge home 70     # park at 70%
   inhibit-charge travel      # before going out
+  sudo inhibit-charge motd   # toggle login-greeting line on/off
 
 DISCLAIMER: This tool writes to your laptop's battery management
 interface. It is provided AS IS, WITHOUT WARRANTY OF ANY KIND. You are
@@ -46,6 +50,109 @@ The author is not liable for damage caused by events outside their
 control (supply-chain compromise, modifications made downstream, etc).
 See /usr/share/doc/inhibit-charge/README.md for the full disclaimer.
 EOF
+}
+
+# Path to the MOTD entry file. Shipped non-executable; the 'motd on'
+# subcommand chmods it +x so PAM's run-parts will pick it up. dpkg owns
+# the file across install/remove, so toggling does not leak files.
+MOTD_FILE=/etc/update-motd.d/50-inhibit-charge
+
+motd_enabled() {
+    [ -x "$MOTD_FILE" ]
+}
+
+motd_require_root_with_hint() {
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "Error: '$MOTD_FILE' is owned by root, so toggling needs sudo." >&2
+        echo "Try: sudo inhibit-charge motd $1" >&2
+        exit 1
+    fi
+}
+
+cmd_motd() {
+    local sub=${1:-toggle}
+    if [ ! -e "$MOTD_FILE" ]; then
+        echo "Error: $MOTD_FILE is not present." >&2
+        echo "This is shipped by the inhibit-charge package; reinstall it if missing." >&2
+        exit 1
+    fi
+    case "$sub" in
+        on|enable)
+            motd_require_root_with_hint on
+            chmod +x "$MOTD_FILE"
+            echo "MOTD entry for inhibit-charge enabled. It will appear on any new"
+            echo "login session (SSH login, console login, or 'bash -l')."
+            ;;
+        off|disable)
+            motd_require_root_with_hint off
+            chmod -x "$MOTD_FILE"
+            echo "MOTD entry for inhibit-charge disabled."
+            ;;
+        status)
+            if motd_enabled; then
+                echo "MOTD entry for inhibit-charge: enabled (file is executable)."
+            else
+                echo "MOTD entry for inhibit-charge: disabled (file is not executable)."
+            fi
+            ;;
+        toggle|"")
+            motd_require_root_with_hint
+            if motd_enabled; then
+                chmod -x "$MOTD_FILE"
+                echo "MOTD entry for inhibit-charge disabled."
+            else
+                chmod +x "$MOTD_FILE"
+                echo "MOTD entry for inhibit-charge enabled. It will appear on any new"
+                echo "login session (SSH login, console login, or 'bash -l')."
+            fi
+            ;;
+        *)
+            echo "Usage: inhibit-charge motd [on|off|status|toggle]" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Compact one-liner used by /etc/update-motd.d/50-inhibit-charge.
+# Different from 'status' (which is a multi-line block for humans
+# inspecting state). Reads the same sysfs and state files; no I/O cost
+# beyond a few cat() calls. Hidden from the help output because it is
+# meant for the MOTD pipeline.
+cmd_motd_render() {
+    detect_supplies
+    local mode target capacity ac behaviour ac_str
+    mode=$(cat "$STATE_DIR/mode" 2>/dev/null || echo "?")
+    target=$(cat "$STATE_DIR/target" 2>/dev/null || echo "?")
+    capacity=$(cat "$BAT/capacity" 2>/dev/null || echo "?")
+    ac=$(cat "$AC/online" 2>/dev/null || echo "0")
+    if [ -r "$BAT/charge_behaviour" ]; then
+        behaviour=$(grep -oP '\[\K[^\]]+' "$BAT/charge_behaviour" || echo "?")
+    else
+        behaviour="?"
+    fi
+    [ "$ac" = "1" ] && ac_str="plugged in" || ac_str="on battery"
+
+    case "$mode" in
+        home)
+            if [ "$behaviour" = "inhibit-charge" ]; then
+                printf "inhibit-charge: home mode, parked at %s%%, currently %s%% (%s).\n" \
+                    "$target" "$capacity" "$ac_str"
+            else
+                printf "inhibit-charge: home mode, target %s%%, currently %s%% (%s, %s).\n" \
+                    "$target" "$capacity" "$ac_str" "$behaviour"
+            fi
+            ;;
+        travel)
+            printf "inhibit-charge: travel mode (charge to 100%%), currently %s%% (%s).\n" \
+                "$capacity" "$ac_str"
+            ;;
+        *)
+            printf "inhibit-charge: %s mode, currently %s%% (%s).\n" \
+                "$mode" "$capacity" "$ac_str"
+            ;;
+    esac
+    # Trailing blank line keeps subsequent MOTD entries readable.
+    echo
 }
 
 reload_daemon() {
@@ -137,6 +244,14 @@ case "$cmd" in
         ;;
     status|"")
         show_status
+        ;;
+    motd)
+        shift || true
+        cmd_motd "${1:-}"
+        ;;
+    motd-render)
+        # Internal: invoked by /etc/update-motd.d/50-inhibit-charge.
+        cmd_motd_render
         ;;
     -h|--help|help)
         usage

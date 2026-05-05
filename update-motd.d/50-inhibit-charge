@@ -1,0 +1,9 @@
+#!/bin/sh
+# MOTD entry for inhibit-charge. Shipped non-executable; toggle on with:
+#   sudo inhibit-charge motd on
+# (or 'sudo inhibit-charge motd' to flip current state).
+#
+# This file is owned by the inhibit-charge package via dpkg, so it is
+# removed cleanly on 'apt purge inhibit-charge'. Toggling never leaks
+# files into /etc/update-motd.d/.
+exec /usr/bin/inhibit-charge motd-render

@@ -1,4 +1,5 @@
 usr/bin/inhibit-charge
 usr/lib/inhibit-charge/inhibit-charged
+etc/update-motd.d/50-inhibit-charge
 usr/share/doc/inhibit-charge/README.md
 usr/share/doc/inhibit-charge/LICENSE

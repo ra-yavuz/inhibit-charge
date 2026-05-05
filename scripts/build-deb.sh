@@ -16,15 +16,19 @@ mkdir -p "$PKG_DIR/DEBIAN" \
          "$PKG_DIR/usr/bin" \
          "$PKG_DIR/usr/lib/inhibit-charge" \
          "$PKG_DIR/usr/share/doc/inhibit-charge" \
-         "$PKG_DIR/lib/systemd/system"
+         "$PKG_DIR/lib/systemd/system" \
+         "$PKG_DIR/etc/update-motd.d"
 
-install -m 0755 "$ROOT/bin/inhibit-charge"                   "$PKG_DIR/usr/bin/inhibit-charge"
-install -m 0755 "$ROOT/lib/inhibit-charge/inhibit-charged"   "$PKG_DIR/usr/lib/inhibit-charge/inhibit-charged"
-install -m 0644 "$ROOT/systemd/inhibit-charged.service"      "$PKG_DIR/lib/systemd/system/inhibit-charged.service"
-install -m 0644 "$ROOT/README.md"                            "$PKG_DIR/usr/share/doc/inhibit-charge/README.md"
-install -m 0644 "$ROOT/LICENSE"                              "$PKG_DIR/usr/share/doc/inhibit-charge/copyright"
-install -m 0755 "$ROOT/debian/postinst"                      "$PKG_DIR/DEBIAN/postinst"
-install -m 0755 "$ROOT/debian/postrm"                        "$PKG_DIR/DEBIAN/postrm"
+install -m 0755 "$ROOT/bin/inhibit-charge"                       "$PKG_DIR/usr/bin/inhibit-charge"
+install -m 0755 "$ROOT/lib/inhibit-charge/inhibit-charged"       "$PKG_DIR/usr/lib/inhibit-charge/inhibit-charged"
+install -m 0644 "$ROOT/systemd/inhibit-charged.service"          "$PKG_DIR/lib/systemd/system/inhibit-charged.service"
+# MOTD entry is shipped non-executable so it is disabled by default.
+# 'inhibit-charge motd on' chmods +x to enable.
+install -m 0644 "$ROOT/update-motd.d/50-inhibit-charge"          "$PKG_DIR/etc/update-motd.d/50-inhibit-charge"
+install -m 0644 "$ROOT/README.md"                                "$PKG_DIR/usr/share/doc/inhibit-charge/README.md"
+install -m 0644 "$ROOT/LICENSE"                                  "$PKG_DIR/usr/share/doc/inhibit-charge/copyright"
+install -m 0755 "$ROOT/debian/postinst"                          "$PKG_DIR/DEBIAN/postinst"
+install -m 0755 "$ROOT/debian/postrm"                            "$PKG_DIR/DEBIAN/postrm"
 
 cat > "$PKG_DIR/DEBIAN/control" <<EOF
 Package: inhibit-charge

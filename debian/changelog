@@ -1,3 +1,24 @@
+inhibit-charge (0.3.0-1) unstable; urgency=low
+
+  * New: optional MOTD entry. The package now ships
+    /etc/update-motd.d/50-inhibit-charge (disabled by default,
+    non-executable). Enable it with 'sudo inhibit-charge motd on' to
+    show the current battery state at the top of any new login session
+    (SSH, console, 'bash -l'). Disable with 'sudo inhibit-charge motd
+    off'. With no argument, the command toggles. 'inhibit-charge motd
+    status' just reports.
+  * The toggle flips the file's executable bit (since PAM run-parts
+    only runs executable files). dpkg owns the file across install /
+    remove / purge, so toggling never leaks files into update-motd.d.
+  * New internal subcommand 'inhibit-charge motd-render' invoked by
+    the MOTD script; prints a one-line summary distinct from the
+    multi-line 'inhibit-charge status' block.
+  * install.sh preserves an existing executable bit on the MOTD entry
+    when reinstalling, so re-running install.sh on a host where the
+    user has enabled MOTD does not silently disable it.
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Tue, 05 May 2026 14:50:00 +0000
+
 inhibit-charge (0.2.1-1) unstable; urgency=low
 
   * postinst now enables and starts inhibit-charged.service on install,

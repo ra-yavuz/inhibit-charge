@@ -41,6 +41,32 @@ $ inhibit-charge home 70
 Switched to home mode (park at 70%).
 ```
 
+## Optional: show battery state at login (MOTD)
+
+The package ships a small file at `/etc/update-motd.d/50-inhibit-charge` that, when enabled, prints the current state at the top of every new login session (SSH, console, `bash -l`). It's disabled by default. To toggle:
+
+```
+$ sudo inhibit-charge motd
+MOTD entry for inhibit-charge enabled. It will appear on any new
+login session (SSH login, console login, or 'bash -l').
+
+$ sudo inhibit-charge motd off
+MOTD entry for inhibit-charge disabled.
+
+$ inhibit-charge motd status
+MOTD entry for inhibit-charge: enabled (file is executable).
+```
+
+The toggle just flips the file's executable bit (PAM's `run-parts` only runs executable files). The file itself is owned by the package, so `apt purge inhibit-charge` removes it cleanly. No leaked files in `/etc/update-motd.d/` regardless of how often you toggle.
+
+The MOTD line is one line, looking like:
+
+```
+inhibit-charge: home mode, parked at 60%, currently 60% (plugged in).
+```
+
+It's compatible with any other `update-motd.d` script (e.g. a separate quote-of-the-day tool). Each MOTD entry runs independently, in alphanumeric filename order.
+
 ## Hardware support
 
 Requires Linux **kernel ≥ 5.17** and a driver that exposes `/sys/class/power_supply/BAT*/charge_behaviour` with `inhibit-charge` listed. The daemon refuses to start on unsupported hardware with a clear error.

@@ -110,7 +110,7 @@
   "description": "A small Linux daemon and CLI that holds your laptop battery at a target charge level on AC using the kernel's inhibit-charge mode, instead of just capping with start/end charge thresholds.",
   "url": "https://ra-yavuz.github.io/inhibit-charge/",
   "downloadUrl": "https://github.com/ra-yavuz/inhibit-charge/releases",
-  "softwareVersion": "0.2.1",
+  "softwareVersion": "0.3.0",
   "license": "https://opensource.org/licenses/MIT",
   "author": {
     "@type": "Person",
@@ -170,7 +170,27 @@
     <li><code>inhibit-charge travel</code> &ndash; charge fully to 100% before unplugging.</li>
     <li><code>inhibit-charge toggle</code> &ndash; flip between the two.</li>
     <li><code>inhibit-charge status</code> &ndash; current mode, battery, AC, behaviour, thresholds.</li>
+    <li><code>sudo inhibit-charge motd [on|off]</code> &ndash; toggle the optional login-greeting line shown by <code>/etc/update-motd.d/</code>. Disabled by default.</li>
   </ul>
+
+  <h2>Optional: show state at login</h2>
+  <p>
+    The package ships a small <code>/etc/update-motd.d/50-inhibit-charge</code>
+    that prints the current battery state at the top of every new login
+    session (SSH, console, <code>bash -l</code>). Disabled by default.
+    Enable it with <code>sudo inhibit-charge motd on</code>; disable it
+    again with <code>sudo inhibit-charge motd off</code>. The toggle just
+    flips the file's executable bit, so dpkg owns the file across
+    install / remove / purge.
+  </p>
+  <pre><code>$ sudo inhibit-charge motd
+MOTD entry for inhibit-charge enabled. It will appear on any new
+login session (SSH login, console login, or 'bash -l').</code></pre>
+  <p>
+    Compatible with any other <code>update-motd.d</code> script (such as a
+    separate quote-of-the-day tool). Each MOTD entry runs independently
+    in filename order.
+  </p>
 
   <h2>Hardware support</h2>
   <p>
