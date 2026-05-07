@@ -90,7 +90,13 @@ Requires Linux **kernel ≥ 5.17** and a driver that exposes `/sys/class/power_s
 | 2 | Some ASUS / IdeaPad | `asus_wmi`, vendor drivers | varies |
 | 3 | Most Dell, HP, MSI, Razer | (no `inhibit-charge` exposed) | not supported, use TLP for thresholds |
 
-To check yours:
+To check yours, after install:
+
+```
+inhibit-charge check
+```
+
+This runs the same compatibility library that the installer and daemon use. It prints OK on supported hardware, or a clear "not supported" message with a TLP recommendation otherwise. Without the package installed, the same answer comes from:
 
 ```
 cat /sys/class/power_supply/BAT0/charge_behaviour

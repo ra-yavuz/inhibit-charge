@@ -5,6 +5,7 @@ set -euo pipefail
 
 STATE_DIR=/var/lib/inhibit-charge
 SERVICE=inhibit-charged.service
+LIBDIR=/usr/lib/inhibit-charge
 
 # Auto-detect the first BAT* and first AC-like supply. Falls back to BAT0/AC.
 detect_supplies() {
@@ -33,11 +34,22 @@ Commands:
   travel           Charge fully to 100% for unplugged use.
   toggle           Flip between home and travel.
   status           Show current mode, battery %, AC status, behaviour.
+  check            Check whether this hardware can run inhibit-charge.
+                   Run this first if you are not sure the tool will help
+                   on your laptop.
   motd [on|off]    Toggle the greeting shown at the top of every new
                    interactive shell. With no argument, toggle. With
                    "status", just report.
 
+Hardware support:
+  Requires Linux kernel >= 5.17 and a battery driver that exposes
+  /sys/class/power_supply/BAT*/charge_behaviour with 'inhibit-charge'
+  listed (mostly ThinkPad, Chromebook, Framework, System76, some Asus).
+  Run 'inhibit-charge check' to verify. If your hardware is not
+  supported, this tool cannot help; use TLP for start/end thresholds.
+
 Examples:
+  inhibit-charge check       # is this tool useful on this laptop?
   inhibit-charge home        # park at 60% (default)
   inhibit-charge home 70     # park at 70%
   inhibit-charge travel      # before going out
@@ -335,6 +347,52 @@ show_status() {
     printf "Behaviour:  %s\n" "$behaviour"
     printf "Thresholds: %s%% .. %s%%\n" "$start" "$end"
     printf "Supplies:   bat=%s ac=%s\n" "$BAT" "$AC"
+
+    if [ "$behaviour" = "(not supported)" ] || [ "$behaviour" = "?" ]; then
+        cat <<EOF
+
+Note: this hardware does not expose the inhibit-charge interface, so
+this tool cannot park your battery here. If you only need start/end
+charge thresholds, use TLP instead. Run 'inhibit-charge check' for the
+full diagnostic, or 'sudo apt purge inhibit-charge' to remove cleanly.
+EOF
+    fi
+}
+
+cmd_check() {
+    local lib="$LIBDIR/compat-check.sh"
+    if [ ! -r "$lib" ]; then
+        echo "Error: $lib is missing. Reinstall the inhibit-charge package." >&2
+        exit 2
+    fi
+    # shellcheck source=lib/inhibit-charge/compat-check.sh
+    . "$lib"
+    if check_compat; then
+        echo "OK: this host can run inhibit-charge."
+        echo "    Kernel and sysfs interface look fine. The daemon should park"
+        echo "    your battery once you set a mode (see 'inhibit-charge home')."
+        exit 0
+    fi
+    cat >&2 <<EOF
+
+This host cannot run inhibit-charge. Recommended next step:
+
+  Install TLP and configure start/end charge thresholds. TLP works on
+  most laptops where inhibit-charge does not, because it only needs the
+  threshold sysfs interface (not the inhibit-charge mode):
+      sudo apt install tlp tlp-rdw
+      sudo tlp start
+
+  Then in /etc/tlp.conf set START_CHARGE_THRESH_BAT0 / STOP_CHARGE_THRESH_BAT0
+  to your preferred range (e.g. 55 and 60). This will not hold the
+  battery as flat as inhibit-charge would, but it is the best your
+  hardware supports.
+
+To remove inhibit-charge cleanly:
+  sudo apt purge inhibit-charge
+
+EOF
+    exit 1
 }
 
 cmd=${1:-status}
@@ -364,6 +422,9 @@ case "$cmd" in
         ;;
     status|"")
         show_status
+        ;;
+    check|compat)
+        cmd_check
         ;;
     motd)
         shift || true
