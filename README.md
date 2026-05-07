@@ -4,11 +4,23 @@
 
 ## Quick install (Debian / Ubuntu)
 
+One line. Sets up the signed `ra-yavuz` apt repo if not already added, refreshes the package index, installs inhibit-charge, and adds you to the `inhibit-charge` group. Idempotent, safe to re-run:
+
+```bash
+sudo bash -c 'set -e; install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://ra-yavuz.github.io/apt/pubkey.gpg -o /etc/apt/keyrings/ra-yavuz.gpg && echo "deb [signed-by=/etc/apt/keyrings/ra-yavuz.gpg] https://ra-yavuz.github.io/apt stable main" > /etc/apt/sources.list.d/ra-yavuz.list && apt update && apt install -y inhibit-charge && usermod -aG inhibit-charge "${SUDO_USER:-$USER}"'
+```
+
+Or via the bundled installer script (equivalent, with hardware compatibility checks and a friendlier output summary):
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ra-yavuz/inhibit-charge/main/scripts/get.sh | sudo bash
 ```
 
-Adds the [signed apt repository](https://ra-yavuz.github.io/apt/), installs the package, adds you to the `inhibit-charge` group. Future upgrades: `sudo apt upgrade`. Full removal: `sudo apt purge inhibit-charge`. Other install paths (manual apt setup, single `.deb`, from source) are documented further down in the [Install](#install) section.
+Both forms add the [signed apt repository](https://ra-yavuz.github.io/apt/) (if not already added), run `apt update`, install the package, and add you to the `inhibit-charge` group. Future upgrades: `sudo apt update && sudo apt upgrade`. Full removal: `sudo apt purge inhibit-charge`.
+
+If you already have the `ra-yavuz` apt repo, all you need is `sudo apt update && sudo apt install inhibit-charge`. The `sudo apt update` step is required: without it apt will not see new packages or new versions. After install, log out and back in (or run `newgrp inhibit-charge`) so the group membership takes effect.
+
+Other install paths (manual apt setup, single `.deb`, from source) are documented further down in the [Install](#install) section.
 
 > ## Disclaimer / no warranty
 >
@@ -109,6 +121,14 @@ cat /sys/class/power_supply/BAT0/charge_behaviour
 
 Add the [ra-yavuz Linux packages](https://ra-yavuz.github.io/apt/) apt repository and install in one shot. You get automatic updates via `apt upgrade`, signed packages, and clean removal via `apt purge`.
 
+The inline one-liner (no script, no `curl | bash`):
+
+```bash
+sudo bash -c 'set -e; install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://ra-yavuz.github.io/apt/pubkey.gpg -o /etc/apt/keyrings/ra-yavuz.gpg && echo "deb [signed-by=/etc/apt/keyrings/ra-yavuz.gpg] https://ra-yavuz.github.io/apt stable main" > /etc/apt/sources.list.d/ra-yavuz.list && apt update && apt install -y inhibit-charge && usermod -aG inhibit-charge "${SUDO_USER:-$USER}"'
+```
+
+Or via the bundled installer script (equivalent, with hardware compatibility checks and a friendlier output summary):
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ra-yavuz/inhibit-charge/main/scripts/get.sh \
   | sudo bash
@@ -122,7 +142,9 @@ less get.sh
 sudo bash get.sh
 ```
 
-What the script does, all idempotent: installs the GPG keyring at `/etc/apt/keyrings/ra-yavuz.gpg`, adds `/etc/apt/sources.list.d/ra-yavuz.list` pointing at `https://ra-yavuz.github.io/apt`, runs `apt update`, installs `inhibit-charge`, and adds the invoking user to the `inhibit-charge` group.
+What both forms do, all idempotent: install the GPG keyring at `/etc/apt/keyrings/ra-yavuz.gpg`, add `/etc/apt/sources.list.d/ra-yavuz.list` pointing at `https://ra-yavuz.github.io/apt`, run `apt update`, install `inhibit-charge`, and add the invoking user to the `inhibit-charge` group.
+
+If you already added the `ra-yavuz` apt repo earlier, all you need is `sudo apt update && sudo apt install inhibit-charge`. The `sudo apt update` step is required: without it apt will not see new packages or new versions.
 
 After install, you need a fresh shell session before the CLI works as your user (Linux freezes group lists at login, so a new terminal tab in the same session is not enough). Either run `newgrp inhibit-charge` in your terminal, log out and back in, or reboot. Then:
 
@@ -130,14 +152,19 @@ After install, you need a fresh shell session before the CLI works as your user 
 inhibit-charge status
 ```
 
-If you'd rather wire up the apt source by hand, the equivalent steps are:
+Step by step (manual repo setup, equivalent to the one-liner):
 
 ```bash
+# 1. Trust the signing key
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://ra-yavuz.github.io/apt/pubkey.gpg \
   | sudo tee /etc/apt/keyrings/ra-yavuz.gpg > /dev/null
+
+# 2. Add the apt source
 echo "deb [signed-by=/etc/apt/keyrings/ra-yavuz.gpg] https://ra-yavuz.github.io/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/ra-yavuz.list
+
+# 3. Refresh the package index, then install and add yourself to the group
 sudo apt update
 sudo apt install inhibit-charge
 sudo usermod -aG inhibit-charge $USER
