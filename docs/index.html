@@ -247,6 +247,19 @@ Greeting disabled.</code></pre>
     cleanly.
   </p>
 
+  <h2>Platform support</h2>
+  <p>
+    Tested on <strong>Ubuntu (Linux only)</strong>.
+    <strong>Linux is the only supported OS.</strong> The tool is built on a
+    Linux kernel feature
+    (<code>charge_behaviour=inhibit-charge</code> on
+    <code>/sys/class/power_supply/BAT*</code>) that does not exist on macOS
+    or Windows. <strong>WSL2 is not supported either</strong>: WSL2 runs a
+    Linux kernel inside a Hyper-V VM and does not expose host battery sysfs
+    to the guest, so the kernel feature is unreachable from inside the WSL
+    distro.
+  </p>
+
   <h2>Hardware support</h2>
   <p>
     Requires Linux kernel &ge; 5.17 and a driver that exposes

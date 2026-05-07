@@ -89,6 +89,10 @@ inhibit-charge: home mode, parked at 60%, currently 60% (plugged in).
 
 If you want a battery line at SSH login (where PAM/MOTD applies, which is mostly relevant for headless servers), this is not the right tool. This is intentional: laptops are the target audience, and "terminal opens" is what laptop users actually do.
 
+## Platform support
+
+Tested on **Ubuntu (Linux only)**. **Linux is the only supported OS.** The whole tool is built on a Linux kernel feature (`charge_behaviour=inhibit-charge` on `/sys/class/power_supply/BAT*`) that does not exist on macOS or Windows. **WSL2 is not supported either**: WSL2 runs a Linux kernel inside a Hyper-V VM and does not expose host battery sysfs to the guest, so the kernel feature is unreachable from inside the WSL distro. On a real Linux laptop, see Hardware support below for which models expose the kernel feature.
+
 ## Hardware support
 
 Requires Linux **kernel ≥ 5.17** and a driver that exposes `/sys/class/power_supply/BAT*/charge_behaviour` with `inhibit-charge` listed. The daemon refuses to start on unsupported hardware with a clear error.
