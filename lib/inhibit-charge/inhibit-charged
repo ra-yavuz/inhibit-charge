@@ -19,6 +19,13 @@ DRIFT_INTERVAL=${DRIFT_INTERVAL:-300}
 
 log() { printf '%s inhibit-charged: %s\n' "$(date -u +%FT%TZ)" "$*"; }
 
+# Shared compatibility check (kernel + sysfs interface). Sourced from the
+# same library that the installer and postinst use, so all three gates
+# stay in sync.
+LIBDIR=${LIBDIR:-/usr/lib/inhibit-charge}
+# shellcheck source=lib/inhibit-charge/compat-check.sh
+. "$LIBDIR/compat-check.sh"
+
 # Auto-detect first Battery and first Mains-like supply.
 detect_supplies() {
     local d type
@@ -37,18 +44,14 @@ detect_supplies() {
     log "using BAT=$BAT AC=$AC"
 }
 
-# Refuse to run on hardware that can't do inhibit-charge.
+# Refuse to run on hardware that cannot do inhibit-charge. Delegates to
+# the shared library; adds the writability check, which is daemon-only
+# (the installer and postinst run as root before any sandboxing applies,
+# but the daemon runs under a hardened unit).
 capability_check() {
-    if [ ! -r "$BAT/charge_behaviour" ]; then
-        log "$BAT/charge_behaviour does not exist on this kernel/hardware."
-        log "inhibit-charge requires kernel >= 5.17 and a driver that exposes charge_behaviour"
-        log "(thinkpad_acpi, cros_ec, framework_laptop, system76_acpi, asus_wmi, ...)."
-        exit 1
-    fi
-    if ! grep -q 'inhibit-charge' "$BAT/charge_behaviour"; then
-        log "this device's charge_behaviour does not list 'inhibit-charge'."
-        log "contents: $(cat "$BAT/charge_behaviour")"
-        log "inhibit-charge cannot run here. Use a threshold-based tool (e.g. TLP) instead."
+    if ! check_compat; then
+        log "compatibility check failed; refusing to start"
+        log "see /usr/share/doc/inhibit-charge/README.md for hardware support"
         exit 1
     fi
     if [ ! -w "$BAT/charge_behaviour" ]; then
@@ -145,11 +148,25 @@ apply
 
 # Event source: udevadm monitor emits one line per uevent on the kernel
 # bus. read -t gives us the drift-timer fallback.
-udevadm monitor --kernel --subsystem-match=power_supply 2>/dev/null | \
+#
+# If `udevadm monitor` exits (e.g. udev restart, sandbox blocks netlink),
+# bash's read sees EOF and returns 1 immediately. Without distinguishing
+# EOF from timeout, the loop would spin and burn CPU forking `apply` as
+# fast as it can. We branch on read's exit status:
+#   0    -> a line arrived (uevent): re-evaluate
+#   >128 -> -t timeout fired (drift wake): re-evaluate
+#   1    -> EOF: upstream is gone, exit inner loop and restart it
 while true; do
-    # We don't care about the line contents, only that something happened.
-    # `read` returns 0 on a uevent and non-zero on the drift-timer timeout;
-    # either way we re-evaluate.
-    read -r -t "$DRIFT_INTERVAL" _ || true
-    apply
+    udevadm monitor --kernel --subsystem-match=power_supply 2>/dev/null | \
+    while :; do
+        read -r -t "$DRIFT_INTERVAL" _
+        rc=$?
+        if [ "$rc" -eq 0 ] || [ "$rc" -gt 128 ]; then
+            apply
+            continue
+        fi
+        break
+    done
+    log "udev monitor exited; restarting in 5s"
+    sleep 5
 done

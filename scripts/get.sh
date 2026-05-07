@@ -47,12 +47,31 @@ command -v gpg >/dev/null 2>&1 || {
     DEBIAN_FRONTEND=noninteractive apt-get install -y gnupg
 }
 
+# Hardware compatibility gate. Refuse before mutating apt sources or
+# installing the package: there is no point adding a repo and a package
+# that cannot work here. The same check lives in the daemon and the
+# package's postinst, so all three layers agree.
+COMPAT_LIB_URL="https://raw.githubusercontent.com/ra-yavuz/inhibit-charge/main/lib/inhibit-charge/compat-check.sh"
+COMPAT_LIB=$(mktemp)
+TMP_KEY=$(mktemp)
+trap 'rm -f "$COMPAT_LIB" "$TMP_KEY"' EXIT
+
+log "checking hardware compatibility"
+if ! curl -fsSL "$COMPAT_LIB_URL" -o "$COMPAT_LIB"; then
+    fail "could not fetch compatibility check from $COMPAT_LIB_URL"
+fi
+# shellcheck source=/dev/null
+. "$COMPAT_LIB"
+if ! check_compat; then
+    echo >&2
+    fail "this host is not compatible with inhibit-charge; see https://github.com/ra-yavuz/inhibit-charge#hardware-support"
+fi
+log "compatibility check passed"
+
 # 1. Trust the signing key. We always (re)write the keyring file so a
 # rotated key picks up on re-runs without manual cleanup.
 log "fetching signing key from $KEY_URL"
 install -m 0755 -d /etc/apt/keyrings
-TMP_KEY=$(mktemp)
-trap 'rm -f "$TMP_KEY"' EXIT
 curl -fsSL "$KEY_URL" -o "$TMP_KEY"
 # Validate the file is a real PGP keyring before installing it.
 if ! gpg --no-default-keyring --keyring "$TMP_KEY" --list-keys >/dev/null 2>&1; then

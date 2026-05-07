@@ -21,6 +21,7 @@ mkdir -p "$PKG_DIR/DEBIAN" \
 
 install -m 0755 "$ROOT/bin/inhibit-charge"                       "$PKG_DIR/usr/bin/inhibit-charge"
 install -m 0755 "$ROOT/lib/inhibit-charge/inhibit-charged"       "$PKG_DIR/usr/lib/inhibit-charge/inhibit-charged"
+install -m 0644 "$ROOT/lib/inhibit-charge/compat-check.sh"       "$PKG_DIR/usr/lib/inhibit-charge/compat-check.sh"
 install -m 0644 "$ROOT/systemd/inhibit-charged.service"          "$PKG_DIR/lib/systemd/system/inhibit-charged.service"
 # Greeting snippet sourced by every interactive shell. The script
 # short-circuits unless /var/lib/inhibit-charge/motd-enabled exists,

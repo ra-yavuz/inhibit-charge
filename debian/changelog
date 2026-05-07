@@ -1,3 +1,31 @@
+inhibit-charge (0.5.0-1) unstable; urgency=low
+
+  * Fix: the systemd unit blocked udevadm monitor by sandboxing its
+    network-family access. RestrictAddressFamilies was set to AF_UNIX
+    only and PrivateNetwork=true. udevadm monitor needs AF_NETLINK and
+    runs in the host network namespace to receive kernel uevents. Both
+    are now relaxed: AF_NETLINK is added to the allowlist and
+    PrivateNetwork is disabled. Without this fix the monitor exited at
+    startup, the daemon's read pipe went to EOF, and the main loop
+    spun, burning ~8% CPU forking shell utilities as fast as bash
+    could.
+  * Fix: the daemon main loop did not distinguish read-EOF from
+    read-timeout. Now branches on read's exit status: 0 means a uevent
+    arrived, >128 means the drift timer fired, 1 means the upstream
+    monitor died and the loop should exit so the outer loop can
+    restart udevadm monitor with a 5s backoff. Defense in depth: even
+    if the unit ever loses access to netlink again, the daemon will
+    not tight-spin.
+  * Add: shared compatibility check library at
+    /usr/lib/inhibit-charge/compat-check.sh. Used by the daemon (final
+    runtime gate, unchanged behaviour), by debian/postinst (warn
+    loudly and skip enable/start on incompatible hardware, but do not
+    fail the package install), and by scripts/get.sh (refuse to add
+    the apt source or install the package on an incompatible host so
+    we never mutate system state we cannot back out of).
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Thu, 07 May 2026 06:00:00 +0000
+
 inhibit-charge (0.4.1-1) unstable; urgency=low
 
   * Fix: the greeting now actually shows on every new terminal tab.

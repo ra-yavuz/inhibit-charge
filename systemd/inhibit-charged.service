@@ -14,16 +14,23 @@ RestartSec=5
 # Light hardening. The daemon must keep CAP_DAC_OVERRIDE off but does need
 # write access to /sys/class/power_supply, so we run as root with a few
 # straightforward restrictions.
+#
+# AF_NETLINK is required so `udevadm monitor` can bind a
+# NETLINK_KOBJECT_UEVENT socket and receive power-supply uevents. Without
+# it the monitor exits immediately, the daemon's read pipe goes to EOF,
+# and the main loop spins. PrivateNetwork=true is similarly incompatible:
+# the kobject uevent broadcast is per-netns, so a private netns receives
+# no events from the host kernel.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-PrivateNetwork=true
+PrivateNetwork=false
 ProtectKernelTunables=false
 ProtectControlGroups=true
 ReadWritePaths=/sys/class/power_supply
 ReadOnlyPaths=/var/lib/inhibit-charge
-RestrictAddressFamilies=AF_UNIX
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
 LockPersonality=true
 MemoryDenyWriteExecute=true
 RestrictRealtime=true

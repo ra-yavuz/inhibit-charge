@@ -7,6 +7,38 @@ STATE_DIR=/var/lib/inhibit-charge
 
 case "$1" in
     configure)
+        # Run the shared compatibility check the daemon will use. We do
+        # NOT fail the postinst on incompatible hardware: a non-zero exit
+        # leaves the package half-configured and breaks future apt
+        # operations. Instead, warn loudly and skip the enable/start
+        # step so the daemon does not flap on an unsupported host. The
+        # admin can purge the package cleanly with apt purge.
+        COMPAT_LIB=/usr/lib/inhibit-charge/compat-check.sh
+        COMPAT_OK=1
+        if [ -r "$COMPAT_LIB" ]; then
+            # shellcheck source=lib/inhibit-charge/compat-check.sh
+            if ! . "$COMPAT_LIB" || ! check_compat; then
+                COMPAT_OK=0
+            fi
+        fi
+        if [ "$COMPAT_OK" = "0" ]; then
+            cat >&2 <<'EOF'
+
+================================================================
+  inhibit-charge: this host does not look compatible
+================================================================
+  The package was installed, but the daemon will NOT be enabled
+  or started, because the compatibility check above did not pass.
+
+  See /usr/share/doc/inhibit-charge/README.md for hardware support.
+  If you only need start/end thresholds, use TLP instead.
+
+  To remove cleanly:   sudo apt purge inhibit-charge
+================================================================
+
+EOF
+        fi
+
         # Migrate from <0.4.0: drop the old PAM-MOTD entry if it exists.
         # 0.4.0 ships /etc/profile.d/50-inhibit-charge.sh instead.
         if [ -e /etc/update-motd.d/50-inhibit-charge ]; then
@@ -44,7 +76,9 @@ case "$1" in
         # Enable and start the daemon. We do this in postinst because the
         # script-built .deb does not run dh_installsystemd, which would
         # normally handle this for us. Re-running on upgrades is a no-op.
-        if [ -d /run/systemd/system ]; then
+        # Skip entirely on incompatible hardware: starting a daemon that
+        # will exit immediately just spams the journal.
+        if [ -d /run/systemd/system ] && [ "$COMPAT_OK" = "1" ]; then
             systemctl daemon-reload || true
             systemctl enable inhibit-charged.service || true
             # On fresh install, start it. On upgrade, restart so the new
@@ -55,6 +89,13 @@ case "$1" in
             else
                 systemctl try-restart inhibit-charged.service || true
             fi
+        elif [ -d /run/systemd/system ] && [ "$COMPAT_OK" = "0" ]; then
+            # Belt and braces: if a previous compatible install enabled
+            # the unit and a later kernel/hardware change made it
+            # incompatible, leave the unit disabled rather than letting
+            # systemd thrash on Restart=on-failure.
+            systemctl disable inhibit-charged.service 2>/dev/null || true
+            systemctl stop inhibit-charged.service 2>/dev/null || true
         fi
         ;;
     abort-upgrade|abort-remove|abort-deconfigure)

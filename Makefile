@@ -19,6 +19,7 @@ install:
 	install -d $(BINDIR) $(LIBDIR) $(UNITDIR) $(STATEDIR) $(DOCDIR)
 	install -m 0755 bin/inhibit-charge              $(BINDIR)/inhibit-charge
 	install -m 0755 lib/inhibit-charge/inhibit-charged $(LIBDIR)/inhibit-charged
+	install -m 0644 lib/inhibit-charge/compat-check.sh $(LIBDIR)/compat-check.sh
 	install -m 0644 systemd/inhibit-charged.service $(UNITDIR)/inhibit-charged.service
 	install -d $(DESTDIR)/etc/profile.d
 	install -m 0644 profile.d/50-inhibit-charge.sh $(DESTDIR)/etc/profile.d/50-inhibit-charge.sh
@@ -34,6 +35,7 @@ install:
 uninstall:
 	rm -f $(BINDIR)/inhibit-charge
 	rm -f $(LIBDIR)/inhibit-charged
+	rm -f $(LIBDIR)/compat-check.sh
 	rmdir --ignore-fail-on-non-empty $(LIBDIR) 2>/dev/null || true
 	rm -f $(UNITDIR)/inhibit-charged.service
 	rm -f $(DESTDIR)/etc/profile.d/50-inhibit-charge.sh
@@ -41,7 +43,7 @@ uninstall:
 	rmdir --ignore-fail-on-non-empty $(DOCDIR) 2>/dev/null || true
 
 lint:
-	shellcheck -x bin/inhibit-charge lib/inhibit-charge/inhibit-charged scripts/build-deb.sh debian/postinst debian/postrm
+	shellcheck -x bin/inhibit-charge lib/inhibit-charge/inhibit-charged lib/inhibit-charge/compat-check.sh scripts/build-deb.sh scripts/get.sh debian/postinst debian/postrm
 
 check: lint
 
