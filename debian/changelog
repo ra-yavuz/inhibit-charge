@@ -1,3 +1,24 @@
+inhibit-charge (0.5.2-1) unstable; urgency=low
+
+  * Fix: complete the 0.5.0 drift-timer fix. 0.5.0 added rc-branching
+    on read's exit status (0=uevent, >128=timeout, 1=EOF) but left the
+    `read -r -t "$DRIFT_INTERVAL"` as a bare command under
+    `set -euo pipefail`. A timed-out read returns >128, which errexit
+    treats as a failure and aborts the inner while-subshell BEFORE the
+    `rc=$?` capture runs, so the rc-branch was never reached on a
+    timeout. The left side of the pipe (udevadm monitor) kept running,
+    so no EOF/restart was logged: the daemon silently stopped calling
+    apply() after its first drift timeout and froze charge_behaviour at
+    whatever the last apply() set. In practice a battery parked with
+    inhibit-charge then drained well below the recharge band without
+    the daemon ever flipping back to auto, because uevents alone do not
+    guarantee an apply() once the loop is dead. Guard the read with
+    `rc=0; read ... || rc=$?` so errexit cannot fire and the rc-branch
+    is always evaluated. Confirmed against an independent review of the
+    set -e / read-timeout interaction.
+
+ -- Ramazan Yavuz <yavuzramazan1994@gmail.com>  Tue, 09 Jun 2026 19:12:27 +0000
+
 inhibit-charge (0.5.1-1) unstable; urgency=low
 
   * Add: 'inhibit-charge check' subcommand. Runs the shared

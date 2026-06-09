@@ -159,8 +159,14 @@ apply
 while true; do
     udevadm monitor --kernel --subsystem-match=power_supply 2>/dev/null | \
     while :; do
-        read -r -t "$DRIFT_INTERVAL" _
-        rc=$?
+        # `read` must be guarded with `|| rc=$?`: under `set -e`, a timed-out
+        # read (exit >128) is a bare failing command and would abort this
+        # subshell before `rc=$?` runs. That silently froze the daemon after
+        # the first drift timeout, leaving charge_behaviour stuck wherever
+        # the last apply() left it. The guard keeps set -e from firing so we
+        # can branch on rc ourselves.
+        rc=0
+        read -r -t "$DRIFT_INTERVAL" _ || rc=$?
         if [ "$rc" -eq 0 ] || [ "$rc" -gt 128 ]; then
             apply
             continue
